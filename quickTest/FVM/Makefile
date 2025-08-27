@@ -1,7 +1,7 @@
 # LOCI_BASE should be set before the Makefile
 
 # List your object files here
-OBJS  =  bcFixedMass.o bcImpermeable.o bcOutflow.o gridReader.o gridSetup.o gridTools.o fluxInviscid.o main.o IOgrid.o IOplot.o solverPeriodic.o solverRungeKutta.o solverSetup.o solverTimestep.o solverIC.o solverEoS.o
+OBJS  =  bcFixedMass.o bcImpermeable.o bcOutflow.o gridReader.o gridSetup.o fluxInviscid.o main.o IOgrid.o IOplot.o solverPeriodic.o solverRungeKutta.o solverSetup.o solverTimestep.o solverIC.o solverEoS.o
 INCLUDES = -I./include
 
 # List the name of your compiled program here
@@ -17,7 +17,7 @@ include $(LOCI_BASE)/Loci.conf
 .PHONY: FORCE
 
 tests: fluidTest ndiff FORCE
-	$(MAKE) -C tests TestResults LOCI_BASE=$(LOCI_BASE)
+	$(MAKE) -C tests TestResults LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE)
 
 
 fluidTest: $(OBJS)

@@ -1,0 +1,41 @@
+---
+title: Collapse Rule
+category: Rule System
+status: normative
+---
+
+# Collapse Rule
+
+A **collapse rule** extracts the final value from a completed
+[iterative loop](./iterative-loop.md), producing an output variable without a
+time-level annotation (a stationary output) from an iterated input. A collapse rule is
+identified by the presence of a [conditional](./conditional.md) clause that
+gates its execution.
+
+The collapse rule fires — and the iteration terminates — when the conditional evaluates
+to true. Until then, the collapse rule does not fire and the loop continues to advance.
+
+## Example
+
+```cpp
+$rule pointwise(solution <- Q{n}),
+      conditional(finishTimestep{n}),
+      constraint(geom_cells) {
+  $solution = $Q{n} ;
+}
+```
+
+## Role in the Iterative Loop
+
+The collapse rule is the exit gate of the
+[iterative loop](./iterative-loop.md). The
+[scheduler](../scheduling/scheduler.md) recognises the
+[build](./build-rule.md) / [advance](./advance-rule.md) / collapse
+pattern and constructs the loop structure accordingly.
+
+---
+
+*See also:* [Build Rule](./build-rule.md),
+[Advance Rule](./advance-rule.md),
+[Conditional](./conditional.md),
+[Iterative Loop](./iterative-loop.md)

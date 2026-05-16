@@ -1,0 +1,54 @@
+---
+title: Rule
+category: Rule System
+status: normative
+---
+
+# Rule
+
+A **Rule** is the fundamental unit of computation in Loci — a declarative specification
+consisting of three parts:
+
+1. A **head** — the Relation produced (output) and the constraints restricting its
+   execution domain.
+2. A **body** — the Relations consumed (data dependencies).
+3. A **kernel** — the local computational procedure, written in C++, that transforms
+   input values to the output value.
+
+Rules are referentially transparent with respect to the
+[fact database](../program-lifecycle/fact-db.md): the output is determined entirely by the
+declared inputs. This property enables automatic dependency-graph construction and safe
+parallel execution.
+
+Rules are written using the [$rule](../source-language/dollar-rule.md) source syntax. The
+Loci preprocessor expands this into C++ class definitions and rule registration calls
+transparently.
+
+## Formal Definition
+
+$\mathcal{R} = (\text{head}, \text{body}, \text{kernel})$
+
+where $\text{head} = (R_\text{out}, C_1, \ldots, C_k)$,
+$\text{body} = \{R_1, \ldots, R_n\}$, and the kernel maps input values to the output
+value. The effective execution domain is $C_1 \cap \cdots \cap C_k$, further refined
+by map-reachability.
+
+## Rule Types
+
+| Type | Purpose |
+|------|---------|
+| [pointwise](./pointwise-rule.md) | Independent per-entity computation |
+| [singleton](./singleton-rule.md) | Compute a `param` from other `param` values |
+| [unit](./unit-rule.md) | Initialise a reduction accumulator |
+| [apply](./apply-rule.md) | Transform-reduce over an entity domain |
+| [default](./default-rule.md) | Assign a `param` its default value at startup |
+| [optional](./optional-rule.md) | Declare an optional `param` variable |
+| [build](./build-rule.md) | Set initial value for an iterative loop variable |
+| [advance](./advance-rule.md) | Advance an iterative loop variable by one step |
+| [collapse](./collapse-rule.md) | Extract the final value from a completed loop |
+| [parametric](./parametric-rule.md) | Generic rule instantiated by substitution |
+
+---
+
+*See also:* [$rule syntax](../source-language/dollar-rule.md),
+[Dependency Graph](../scheduling/dependency-graph.md)

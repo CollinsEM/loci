@@ -1,0 +1,74 @@
+---
+title: Loci Runtime Specification
+category: Runtime Specification
+status: normative
+audience: runtime
+---
+
+# Loci Runtime Specification
+
+This section documents the obligations of a **conforming Loci runtime** — any
+implementation of the Loci framework's preprocessor, scheduler, and parallel
+execution backend. The normative reference implementation is `loci-4.1.2` (LGPLv3).
+
+A conforming runtime must honour every behavioural guarantee stated in the
+[Application Developer Reference](../index.md) as observable from application code. The
+pages in this section define *how* those guarantees must be implemented.
+
+---
+
+## Scope
+
+The runtime specification covers:
+
+- The **C++ rule class interface**: base classes, `name_store`, `input`, `output`
+  registration, and the `calculate` / `compute` / `do_loop` execution structure
+- The **rule registration mechanism**: how `$rule` declarations become globally
+  registered C++ objects
+- The **scheduler**: dependency graph construction, loop instantiation, promote /
+  generalise insertion, and schedule linearisation
+- The **preprocessor** (`lpp`): conformance obligations for source-to-source
+  translation
+- The **parallel execution model**: data distribution, ghost entity communication,
+  halo exchange, and correctness guarantees
+
+## Relationship to the Application Developer Reference
+
+The Application Developer Reference defines the *observable behaviour* of Loci from
+the application programmer's perspective. The runtime specification defines the
+*mechanisms* that must produce that behaviour.
+
+Concepts that appear in both documents:
+
+- [Parallelism Transparency](../principles/parallelism-transparency.md) — the invariant
+  any conforming runtime must guarantee
+- [Static Schedule](../principles/static-schedule.md) — schedule construction timing
+  requirements
+- [Scheduler](../scheduling/scheduler.md) — observable schedule construction sequence
+- [promote](../scheduling/promote.md) and [generalize](../scheduling/generalize.md) — mandatory
+  internal operations
+- [Ghost Entities](../distributed-execution/ghost-entity.md) and
+  [Halo Exchange](../distributed-execution/halo-exchange.md) — parallel communication obligations
+- [lpp](../source-language/lpp.md) — preprocessor interface and flag semantics
+
+## Contents
+
+- [C++ Rule Class Interface](./rule-class-interface.md) — base classes and
+  registration for each rule type
+- [Rule Registration Mechanism](./rule-registration.md) — `register_rule<T>`
+  and the global rule list
+- [Scheduler Algorithm](./scheduler-algorithm.md) — dependency graph generation,
+  iteration instantiation, volatile/static fact analysis
+- [lpp Conformance Obligations](./lpp-conformance.md) — what a conforming
+  preprocessor must produce for each source construct
+
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+lpp-conformance
+rule-class-interface
+rule-registration
+scheduler-algorithm
+```

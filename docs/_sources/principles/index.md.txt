@@ -1,0 +1,15 @@
+---
+title: Foundational Principles
+---
+
+# Foundational Principles
+
+
+```{toctree}
+:maxdepth: 1
+
+data-driven-computation
+parallelism-transparency
+separation-of-concerns
+static-schedule
+```

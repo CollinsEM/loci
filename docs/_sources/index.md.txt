@@ -1,0 +1,174 @@
+# Loci Framework Specification — Wiki
+
+**Loci Application Developer Reference** · Draft 0.7.0 · May 2026
+
+Complete reference documentation for writing Loci applications. Covers the full
+developer-facing surface: foundational principles, core data model, rule types,
+scheduling model, program lifecycle, and standard modules (FVM). Pages use
+`[wikilinks](./wikilinks.md)` for cross-references and are compatible with Obsidian, Emacs
+org-mode (via `pandoc`), and Sphinx/MyST.
+
+---
+
+## Foundational Principles
+
+> These four principles are architectural commitments, not implementation choices.
+> Every specification decision is evaluated against them.
+
+- [Parallelism Transparency](./principles/parallelism-transparency.md)
+- [Static Schedule](./principles/static-schedule.md)
+- [Data-Driven Computation](./principles/data-driven-computation.md)
+- [Separation of Concerns](./principles/separation-of-concerns.md)
+
+---
+
+## Core Data Model
+
+Entities, entity sets, and the container types that map entity sets to values.
+
+- [Entity](./core-data-model/entity.md)
+- [EntitySet](./core-data-model/entity-set.md)
+- [Relation](./core-data-model/relation.md)
+- [store](./core-data-model/store.md)
+- [storeVec](./core-data-model/store-vec.md)
+- [storeMat](./core-data-model/store-mat.md)
+- [Map](./core-data-model/map.md)
+- [MapVec](./core-data-model/map-vec.md)
+- [multiMap](./core-data-model/multi-map.md)
+- [param](./core-data-model/param.md)
+- [blackbox](./core-data-model/blackbox.md)
+- [constraint](./core-data-model/constraint.md)
+- [options_list](./core-data-model/options-list.md)
+- [data_schema_traits](./core-data-model/data-schema-traits.md)
+- [Array\<T,N\>](./core-data-model/array.md)
+- [vector3d\<T\>](./core-data-model/vector3d.md)
+- [vector2d\<T\>](./core-data-model/vector2d.md)
+
+---
+
+## Rule System
+
+The rule types and constructs that express computations in Loci.
+
+- [Rule](./rule-system/rule.md)
+- [Pointwise Rule](./rule-system/pointwise-rule.md)
+- [Singleton Rule](./rule-system/singleton-rule.md)
+- [Unit Rule](./rule-system/unit-rule.md)
+- [Apply Rule](./rule-system/apply-rule.md)
+- [Build Rule](./rule-system/build-rule.md)
+- [Advance Rule](./rule-system/advance-rule.md)
+- [Collapse Rule](./rule-system/collapse-rule.md)
+- [Default Rule](./rule-system/default-rule.md)
+- [Optional Rule](./rule-system/optional-rule.md)
+- [Constraint Rule](./rule-system/constraint-rule.md)
+- [Conditional](./rule-system/conditional.md)
+- [Parametric Rule](./rule-system/parametric-rule.md)
+- [Priority Specifier](./rule-system/priority-specifier.md)
+- [OUTPUT](./rule-system/output.md)
+- [Prelude Block](./rule-system/prelude-block.md)
+- [Iterative Loop](./rule-system/iterative-loop.md)
+
+---
+
+## Scheduling and Execution Model
+
+- [Scheduler](./scheduling/scheduler.md)
+- [Dependency Graph](./scheduling/dependency-graph.md)
+- [promote](./scheduling/promote.md)
+- [generalize](./scheduling/generalize.md)
+
+---
+
+## Distributed Execution
+
+- [Ghost Entity](./distributed-execution/ghost-entity.md)
+- [Halo Exchange](./distributed-execution/halo-exchange.md)
+
+---
+
+## Program Lifecycle
+
+The programmatic interface that appears in an application's `main()`.
+
+- [Loci::Init / Loci::Finalize](./program-lifecycle/init-finalize.md)
+- [global_rule_list](./program-lifecycle/global-rule-list.md)
+- [rule_db](./program-lifecycle/rule-db.md)
+- [Loci::load_module](./program-lifecycle/load-module.md)
+- [fact_db](./program-lifecycle/fact-db.md)
+- [get_allocation](./program-lifecycle/get-allocation.md)
+- [.vars File Format](./program-lifecycle/vars-file.md)
+- [read_vars](./program-lifecycle/read-vars.md)
+- [Loci::makeQuery](./program-lifecycle/make-query.md)
+- [HDF5 I/O](./program-lifecycle/hdf5-io.md)
+- [Debugging](./program-lifecycle/debugging.md)
+
+---
+
+## Standard Modules
+
+Reusable Loci modules that ship with the framework.
+
+- [FVM Module](./fvm/index.md) — finite-volume mesh setup, metrics, gradients, MUSCL, PETSc solvers
+
+---
+
+## Loci Source Language
+
+Preprocessor syntax recognized by the `lpp` tool.
+
+- [lpp (Loci Preprocessor)](./source-language/lpp.md)
+- [$type](./source-language/dollar-type.md)
+- [$include](./source-language/dollar-include.md)
+- [$rule syntax](./source-language/dollar-rule.md)
+- [$[Once](./source-language/dollar-once.md)]
+- [Comments](./source-language/comments.md)
+- [Loci::debugout](./source-language/debugout.md)
+- [Prelude / Compute Split](./source-language/prelude-compute-split.md)
+- [Coding Style Guide](./source-language/style-guide.md)
+
+---
+
+## Runtime Specification
+
+Reference for framework and runtime developers implementing a conforming Loci backend,
+preprocessor, or scheduler.
+
+- [Runtime Specification Overview](./runtime/index.md)
+- [C++ Rule Class Interface](./runtime/rule-class-interface.md)
+- [Rule Registration Mechanism](./runtime/rule-registration.md)
+- [Scheduler Algorithm](./runtime/scheduler-algorithm.md)
+- [lpp Conformance Obligations](./runtime/lpp-conformance.md)
+
+---
+
+## Document Status
+
+Each page carries two frontmatter fields:
+
+| Field | Values | Meaning |
+|-------|--------|---------|
+| `status` | `normative`, `draft`, `stub` | Editorial completeness |
+| `audience` | `application`, `runtime`, `both` | Which document the page belongs to |
+
+Pages without an `audience` field are implicitly `application`-only. Pages marked
+`both` appear in both the Application Developer Reference and the Runtime
+Specification.
+
+
+
+<!-- Sphinx navigation — hidden from page display -->
+
+```{toctree}
+:hidden:
+:maxdepth: 2
+
+principles/index
+core-data-model/index
+rule-system/index
+scheduling/index
+distributed-execution/index
+program-lifecycle/index
+fvm/index
+source-language/index
+runtime/index
+```

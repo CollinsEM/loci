@@ -1,0 +1,28 @@
+---
+title: Rule System
+---
+
+# Rule System
+
+
+```{toctree}
+:maxdepth: 1
+
+advance-rule
+apply-rule
+build-rule
+collapse-rule
+conditional
+constraint-rule
+default-rule
+iterative-loop
+optional-rule
+output
+parametric-rule
+pointwise-rule
+prelude-block
+priority-specifier
+rule
+singleton-rule
+unit-rule
+```

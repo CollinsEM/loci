@@ -1,0 +1,27 @@
+---
+title: Comments Annotation
+category: Loci Source Language
+status: normative
+---
+
+# Comments Annotation
+
+The **`comments`** annotation may be attached to a `$rule` declaration to provide a
+human-readable description of the rule's purpose. It appears as a clause in the rule
+declaration:
+
+```cpp
+$rule default(deltaT),
+      comments("Timestep used in the simulation") {
+  $deltaT = 1 ;
+}
+```
+
+The comment string is captured by the preprocessor and made available as documentation
+metadata associated with the rule. It has no effect on scheduling or execution
+semantics.
+
+---
+
+*See also:* [$rule syntax](./dollar-rule.md),
+[$type declaration](./dollar-type.md)

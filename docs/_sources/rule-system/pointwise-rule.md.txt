@@ -1,0 +1,36 @@
+---
+title: Pointwise Rule
+category: Rule System
+status: normative
+---
+
+# Pointwise Rule
+
+A **pointwise rule** computes an output value independently for each entity in its
+execution domain. The kernel for entity `e` may access input values at `e` or at
+entities reachable from `e` via [Map](../core-data-model/map.md) chains, but does not
+depend on values at other domain entities. Pointwise rules are trivially data-parallel.
+
+## Example
+
+```cpp
+$rule pointwise(pressure <- rho, temperature, Rgas) {
+  $pressure = $rho * $Rgas * $temperature ;
+}
+```
+
+Here `Rgas` is a [param](../core-data-model/param.md) — accessed as `$Rgas` in the compute
+block like any other rule input.
+
+## Characteristics
+
+- Kernel executes once per entity in the execution domain.
+- No ordering constraints between entities — the runtime may execute them in any order
+  or in parallel.
+- May read from adjacent entities via map chains (`$cl->$pressure`).
+- May write to adjacent entities via map chains (unusual; typically done with apply rules).
+
+---
+
+*See also:* [Singleton Rule](./singleton-rule.md),
+[Apply Rule](./apply-rule.md), [Rule](./rule.md)

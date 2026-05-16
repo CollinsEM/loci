@@ -1,0 +1,52 @@
+---
+title: Scheduler
+category: Scheduling and Execution Model
+status: normative
+audience: both
+---
+
+# Scheduler
+
+The **scheduler** is the runtime component responsible for constructing and executing
+the compute graph. Per the [Static Schedule Principle](../principles/static-schedule.md),
+schedule construction occurs each time [Loci::makeQuery](../program-lifecycle/make-query.md)
+is invoked.
+
+## Schedule Construction Steps
+
+1. **Initialisation.** [Default](../rule-system/default-rule.md) and
+   [optional](../rule-system/optional-rule.md) rules are processed; the `.vars` file is
+   parsed. The [fact database](../program-lifecycle/fact-db.md) is populated with existential
+   facts. Optional variables not provided are left absent.
+
+2. **Graph deduction.** Beginning from the [query](../program-lifecycle/make-query.md), the
+   scheduler performs a backward traversal of the rule database. Rules whose body
+   Relations cannot be satisfied are pruned. This pruning propagates transitively: all
+   rules depending on pruned outputs are also pruned.
+
+3. **Domain refinement.** For each rule in the candidate schedule, the scheduler
+   refines its execution domain by propagating [Map](../core-data-model/map.md)-chain
+   reachability. A rule is executable for entity `e` only if every input value required
+   is reachable from `e` via the declared map chains. If the resulting domain violates a
+   declared [constraint](../core-data-model/constraint.md) precondition, the scheduler exits
+   with a diagnostic.
+
+4. **Loop structure recognition.** The scheduler identifies [build](../rule-system/build-rule.md),
+   [advance](../rule-system/advance-rule.md), and [collapse](../rule-system/collapse-rule.md) rules
+   and constructs the corresponding [iterative loop](../rule-system/iterative-loop.md)
+   structures. [Promote](./promote.md) and [generalize](./generalize.md)
+   operations are inserted transparently as needed.
+
+5. **Schedule generation.** A valid topological ordering of the rule set is produced.
+   Explicit [param](../core-data-model/param.md) synchronisation steps are inserted at
+   appropriate points. [OUTPUT](../rule-system/output.md) rules are placed wherever their
+   inputs are satisfied.
+
+6. **Distribution and execution.** The schedule is distributed over available computing
+   resources and executed. No further schedule modification occurs during execution.
+
+---
+
+*See also:* [Dependency Graph](./dependency-graph.md),
+[Loci::makeQuery](../program-lifecycle/make-query.md),
+[Static Schedule Principle](../principles/static-schedule.md)

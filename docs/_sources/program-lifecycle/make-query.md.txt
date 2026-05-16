@@ -1,0 +1,95 @@
+---
+title: "Loci::makeQuery"
+category: Program Lifecycle
+status: normative
+---
+
+# Loci::makeQuery
+
+**`Loci::makeQuery`** is the call that triggers schedule construction and execution. It
+takes the rule database, the fact database, and the name of the desired output variable
+(the query), and returns a boolean indicating whether the query was successfully
+satisfied.
+
+```cpp
+if(!Loci::makeQuery(rdb, facts, "solution")) {
+  cerr << "query failed!" << endl ;
+  Loci::Abort() ;
+}
+```
+
+## Behavioural Guarantees
+
+- Treats the current contents of the `fact_db` as existential facts. Treats the current
+  contents of the `rule_db` as the complete universe of available rules.
+- Performs the full schedule construction sequence described in the
+  [scheduler](../scheduling/scheduler.md) entry: graph deduction, domain refinement, loop
+  structure recognition, and schedule generation.
+- Distributes and executes the schedule across all available processes.
+- Returns `true` if the queried variable was successfully computed; `false` if the
+  schedule could not be constructed (e.g., required existential facts absent, dependency
+  chain incomplete).
+- Is **stateless** with respect to prior `makeQuery` calls. Each invocation
+  independently reads the current state of `rdb` and `facts`.
+
+## Conventional Query Variable
+
+Most Loci programs query for the variable `"solution"`, which plays a role analogous
+to `main` in a C program — it is the conventional terminal node of the compute graph
+from which the scheduler works backward to construct the full schedule.
+
+## Multiple Queries
+
+`makeQuery` may be called multiple times on the same `fact_db`. Before each call,
+all **intensional** facts (those derived by rules in the previous schedule) are erased
+from the fact database. **Extensional** facts (those placed in the database by the
+application before the call) are preserved across calls.
+
+If the queried variable is already an extensional fact — present in the database
+before the call — `makeQuery` reports success immediately without constructing or
+executing a schedule.
+
+This enables several patterns:
+
+**Sequential independent queries:**
+
+```cpp
+Loci::makeQuery(rdb, facts, "area") ;
+Loci::makeQuery(rdb, facts, "vol") ;
+Loci::makeQuery(rdb, facts, "solution") ;
+```
+
+Each call produces its results independently. Earlier results are cleared before the
+next query, so the queries are not cumulative.
+
+**AMR restart:**
+
+```cpp
+// First solve
+Loci::makeQuery(rdb, facts, "solution") ;
+
+// AMR cycle: adapt mesh, repopulate fact_db, solve again
+adaptMesh(facts) ;
+Loci::makeQuery(rdb, facts, "solution") ;
+```
+
+Each call to `makeQuery` constructs a fresh static schedule from the current state
+of `rdb` and `facts`. The schedule from a prior call is not reused.
+
+## Error Handling
+
+On failure, `makeQuery` returns `false`. The conventional response is to call
+`Loci::Abort()`, which performs a clean MPI-collective abort across all processes:
+
+```cpp
+if(!Loci::makeQuery(rdb, facts, "solution")) {
+  cerr << "query failed!" << endl ;
+  Loci::Abort() ;
+}
+```
+
+---
+
+*See also:* [Scheduler](../scheduling/scheduler.md), [rule_db](./rule-db.md),
+[fact_db](./fact-db.md),
+[Static Schedule Principle](../principles/static-schedule.md)

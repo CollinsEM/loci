@@ -1,0 +1,131 @@
+---
+title: Debugging
+category: Program Lifecycle
+status: normative
+---
+
+# Debugging
+
+Debugging a Loci program involves two distinct problems: ordinary C++ bugs (segfaults,
+wrong arithmetic) and scheduling bugs (a rule that is not included in the schedule, or
+executed over the wrong entities). The techniques differ.
+
+## Compiler-level debugging
+
+Add `-g` to the compilation flags by setting `COPT = -g` in the application Makefile and
+recompiling. Standard debuggers such as `gdb` work on Loci executables directly.
+
+**Floating-point exceptions:** call `set_fpe_abort()` immediately after
+`Loci::Initialize()` to convert floating-point exceptions (divide-by-zero, overflow,
+invalid operation) into hard aborts. This surfaces NaN/Inf problems at their origin
+rather than letting them propagate silently.
+
+```cpp
+int main(int argc, char *argv[]) {
+  Loci::Init(&argc, &argv) ;
+  set_fpe_abort() ;           // trap FP exceptions immediately
+  // ...
+}
+```
+
+**Parallel gdb:** to attach debuggers to all processes simultaneously, launch the
+program with:
+
+```
+mpirun -np N ./myapp --display $DISPLAY --debug gdb test
+```
+
+Loci will open a terminal window running `gdb` for each process that aborts.
+
+## Runtime utilities
+
+### Loci::Abort()
+
+`Loci::Abort()` performs an MPI-aware abort that terminates all processes cleanly. Use
+it in place of `exit()` or `std::abort()` when an unrecoverable error is detected:
+
+```cpp
+if(!Loci::setupFVMGrid(facts, gridFile)) {
+  cerr << "could not read grid file '" << gridFile << "'" << endl ;
+  Loci::Abort() ;
+}
+```
+
+### Loci::MPI\_rank and Loci::MPI\_processes
+
+`Loci::MPI_rank` (integer, 0-based) and `Loci::MPI_processes` (total process count) are
+global variables available after `Loci::Init()`. They are commonly used to suppress
+duplicate output in parallel runs:
+
+```cpp
+if(Loci::MPI_rank == 0)
+  cout << "iteration " << $n << ": residual = " << $L2Norm(R) << endl ;
+```
+
+In rule kernels, guard output with `Loci::MPI_rank == 0` and declare the rule
+`option(disable_threading)` to prevent repeated execution.
+
+## Schedule debugging
+
+### The `debug/` directory
+
+Each time a Loci program runs, the runtime writes files into a `debug/` subdirectory of
+the working directory. These files list every rule that was **removed** from the schedule
+and explain why — typically naming the variable that could not be derived. Reading the
+`debug/` files is usually the fastest way to diagnose why a rule is not firing.
+
+In a serial run the file is named `debug`; in a parallel run each process writes its own
+file with the MPI rank appended: `debug-0`, `debug-1`, etc.
+
+### `--scheduleoutput` and `schedule`
+
+Passing `--scheduleoutput` on the command line instructs the runtime to write the full
+execution schedule into the `debug/` subdirectory. Each line shows one scheduled step:
+the rule, its inputs, and the entity sequence over which it executes.
+
+In a parallel run the schedule file for each process is named with its rank appended:
+`schedule-0`, `schedule-1`, etc.
+
+### `--nochomp`
+
+The chomping optimisation merges fine-grained schedule steps into coarser units for
+efficiency. While correct, the merged output can be difficult to read. Passing
+`--nochomp` disables this optimisation and makes the `.schedule` file easier to
+interpret. Use it together with `--scheduleoutput`:
+
+```
+mpirun -np 1 ./myapp --scheduleoutput --nochomp test
+```
+
+## Scheduler-assisted diagnosis
+
+### Temporary constraints
+
+If a rule fires but over fewer entities than expected, temporarily add a tight
+`constraint()` clause to force the scheduler to explain the gap. For example, adding
+`constraint(area)` requires the rule to be executable over all faces; if it cannot be,
+the `debug/` files will list exactly which input is unavailable.
+
+Remove temporary constraints once the diagnosis is complete — a constraint permanently
+restricts a rule's applicability.
+
+### Dummy rules
+
+To isolate which part of a dependency chain is broken, replace a suspected rule with a
+dummy that satisfies the same output from a known-available input:
+
+```cpp
+$rule pointwise(deltaQ <- Q) {
+  // dummy: establishes deltaQ is derivable from Q
+}
+```
+
+If the schedule succeeds with the dummy, narrow the substituted input until the failing
+dependency is identified.
+
+---
+
+*See also:* [Loci::debugout](../source-language/debugout.md),
+[\$[Once](../source-language/dollar-once.md)],
+[Loci::makeQuery](./make-query.md),
+[Scheduler](../scheduling/scheduler.md)

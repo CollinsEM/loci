@@ -1,0 +1,96 @@
+---
+title: Parametric Rule
+category: Rule System
+status: normative
+---
+
+# Parametric Rule
+
+A **parametric rule** defines a *family* of rules parameterised by one or more
+substitution keys, enabling the expression of generic computations that can be
+instantiated for different variables without code duplication.
+
+## Definition
+
+A parametric variable is one whose name includes a parenthesised substitution key list:
+`cellIntegrate(X)`, `EulerIntegrate(X,Y)`. How Loci interprets such a variable depends
+on where it appears in the rule signature:
+
+- **In the output**: the rule is parametric and defines a family. The scheduler
+  instantiates it by substituting concrete variable names for the keys.
+- **In the input**: it is a request for a specific instantiation, with the argument
+  names substituted for the keys throughout the instantiated rule.
+
+## Substitution Semantics
+
+All occurrences of a key in the rule signature and body are replaced simultaneously.
+`$cl->$X` becomes `$cl->$rho` when instantiated with `X→rho`.
+
+**Underscore segments:** substitution applies to each underscore-delimited segment
+independently. When key `Y` is substituted by `u`, the identifier `Y_ic` becomes `u_ic`.
+The full token `YY` is NOT substituted — only exact segment matches are replaced.
+
+Multiple substitution keys are supported: `EulerIntegrate(X,Y)` substitutes both `X`
+and `Y` when instantiated.
+
+## The `parametric` Keyword
+
+When the parametric variable appears only in the **input** of a rule (not the output),
+Loci cannot automatically identify the rule as parametric. The `parametric` keyword is
+required in this case, naming the variable that provides the substitution keys:
+
+```cpp
+// Y is the output — a plain variable. EulerIntegrate(X,Y) is input-only.
+$rule pointwise(Y <- EulerIntegrate(X,Y)),
+      parametric(EulerIntegrate(X,Y)) {
+  $Y = $EulerIntegrate(X,Y) ;
+}
+```
+
+## Compatibility
+
+Parametric variables are compatible with all rule types — `pointwise`, `unit`/`apply`,
+`singleton`, `build`/`advance`/`collapse` — and may appear in conditional and
+`constraint()` clauses.
+
+## Example
+
+```cpp
+// ── Output-position case: parametric keyword not needed ──
+
+$type cellIntegrate(X) store<real> ;
+$type X store<real> ;
+
+// X in the output → automatically a parametric rule
+$rule pointwise(cellIntegrate(X) <- (il,ir)->X) {
+  $cellIntegrate(X) = $ir->$X - $il->$X ;
+}
+
+// Requesting cellIntegrate(ux) instantiates the above rule with X→ux
+$rule pointwise(R <- nu, cellIntegrate(ux), L) {
+  $R = $nu * $cellIntegrate(ux) / $L ;
+}
+
+// ── Input-only case: parametric keyword required ──
+
+$type EulerIntegrate(X,Y) store<real> ;
+$type Y store<real> ;
+
+// Output Y is a plain variable; parametric keyword tells the scheduler
+// to treat EulerIntegrate(X,Y) as the substitution source
+$rule pointwise(Y <- EulerIntegrate(X,Y)),
+      parametric(EulerIntegrate(X,Y)) {
+  $Y = $EulerIntegrate(X,Y) ;
+}
+```
+
+> **Note (unverified):** The relationship between the parenthesised form
+> (`grad(rho)`) and any underscore-flattened schedule name (`grad_rho`) has not been
+> confirmed against the reference implementation. Do not rely on a specific internal
+> representation in rule signatures.
+
+---
+
+*See also:* [Rule](./rule.md), [Pointwise Rule](./pointwise-rule.md),
+[Unit Rule](./unit-rule.md), [Apply Rule](./apply-rule.md),
+[Scheduler](../scheduling/scheduler.md)

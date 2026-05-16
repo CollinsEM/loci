@@ -1,0 +1,19 @@
+---
+title: Halo Exchange
+category: Distributed Execution
+status: normative
+audience: both
+---
+
+# Halo Exchange
+
+A **halo exchange** is a runtime communication operation in which Relation values for
+[ghost entities](./ghost-entity.md) are updated from their owning
+processes to their neighbouring processes. Halo exchanges are inserted automatically
+by the [scheduler](../scheduling/scheduler.md) wherever a rule's map-chain dependencies
+cross process boundaries, and are entirely transparent to the application developer.
+
+---
+
+*See also:* [Ghost Entity](./ghost-entity.md),
+[Scheduler](../scheduling/scheduler.md)

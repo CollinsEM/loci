@@ -1,0 +1,22 @@
+---
+title: Program Lifecycle
+---
+
+# Program Lifecycle
+
+
+```{toctree}
+:maxdepth: 1
+
+debugging
+fact-db
+get-allocation
+global-rule-list
+hdf5-io
+init-finalize
+load-module
+make-query
+read-vars
+rule-db
+vars-file
+```

@@ -1,0 +1,30 @@
+---
+title: get_allocation
+category: Program Lifecycle
+status: normative
+---
+
+# get_allocation
+
+**`get_allocation(n)`** is a method of [fact_db](./fact-db.md) that
+allocates `n` fresh [entity](../core-data-model/entity.md) identifiers guaranteed to be
+unique within the fact database. It returns an [EntitySet](../core-data-model/entity-set.md)
+containing exactly `n` entity labels that have not previously been allocated.
+
+`get_allocation` is the normative mechanism for introducing new entities into the Loci
+runtime. The fact database is the central authority over entity identity, and
+`get_allocation` is the interface through which that authority is exercised. Application
+developers must use `get_allocation` rather than assigning entity identifiers directly,
+to guarantee uniqueness across all entities in the program.
+
+## Example
+
+```cpp
+entitySet nodes = facts.get_allocation(N+1) ;
+entitySet cells = facts.get_allocation(N) ;
+```
+
+---
+
+*See also:* [fact_db](./fact-db.md), [Entity](../core-data-model/entity.md),
+[EntitySet](../core-data-model/entity-set.md)

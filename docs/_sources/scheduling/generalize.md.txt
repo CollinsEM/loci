@@ -1,0 +1,26 @@
+---
+title: generalize
+category: Scheduling and Execution Model
+status: normative
+audience: both
+---
+
+# generalize
+
+**Generalize** is a scheduler-internal operation, inserted automatically into the
+execution schedule, that unifies the output of a [build rule](../rule-system/build-rule.md)
+(`u{n=0}`) with the loop variable (`u{n}`) for the first iteration of an
+[iterative loop](../rule-system/iterative-loop.md). After the first iteration, `u{n}` is
+set to the value computed for `u{n+1}` by the preceding
+[advance rule](../rule-system/advance-rule.md).
+
+## Transparency
+
+Generalize is transparent to the application developer and is documented here for
+reference when reading scheduler output. The precise rules governing generalize
+belong to the Loci Runtime Specification.
+
+---
+
+*See also:* [promote](./promote.md), [Build Rule](../rule-system/build-rule.md),
+[Iterative Loop](../rule-system/iterative-loop.md)

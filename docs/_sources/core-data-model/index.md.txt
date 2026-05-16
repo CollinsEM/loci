@@ -1,0 +1,28 @@
+---
+title: Core Data Model
+---
+
+# Core Data Model
+
+
+```{toctree}
+:maxdepth: 1
+
+array
+blackbox
+constraint
+data-schema-traits
+entity
+entity-set
+map
+map-vec
+multi-map
+options-list
+param
+relation
+store
+store-mat
+store-vec
+vector2d
+vector3d
+```

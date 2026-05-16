@@ -1,0 +1,23 @@
+---
+title: Ghost Entity
+category: Distributed Execution
+status: normative
+audience: both
+---
+
+# Ghost Entity
+
+A **ghost entity** (also called a *halo entity*) is a read-only copy of an entity
+owned by a neighbouring partition, held locally on the current process to satisfy data
+dependencies of rules that operate at partition boundaries. Ghost entity values are
+populated by the runtime during [halo exchange](./halo-exchange.md)
+steps, transparently to the application developer.
+
+Ghost entities support the [Parallelism
+Transparency Principle](../principles/parallelism-transparency.md): the application developer writes rules that access adjacent
+entities via map chains without any awareness of whether those entities are local or
+remote.
+
+---
+
+*See also:* [Halo Exchange](./halo-exchange.md)

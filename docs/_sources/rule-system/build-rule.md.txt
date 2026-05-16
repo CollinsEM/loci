@@ -1,0 +1,38 @@
+---
+title: Build Rule
+category: Rule System
+status: normative
+---
+
+# Build Rule
+
+A **build rule** establishes the initial value of an iterated variable — the value at
+the first iteration of an [iterative loop](./iterative-loop.md). A build rule
+is identified by having an output variable annotated with an `=` operator in the
+time-level specification: `varName{n=0}`.
+
+## Example
+
+```cpp
+$rule pointwise(Q{n=0} <- Density, Cp, T_initial) {
+  $Q{n=0} = $Density * $Cp * $T_initial ;
+}
+```
+
+## Multi-Level Storage
+
+By declaring additional build rules with outputs at negative indices —
+`varName{n=-1}` and `varName{n=0}` — the application developer signals that at
+least two levels of storage must be retained simultaneously. This makes
+`varName{n}` and `varName{n-1}` available as inputs to subsequent rules, enabling
+multi-step time integration methods (Adams-Bashforth, BDF2, etc.) that require
+solution history.
+
+In general, declaring build rules at indices `{n=-k}, ..., {n=0}` retains k+1 levels
+of storage.
+
+---
+
+*See also:* [Advance Rule](./advance-rule.md),
+[Collapse Rule](./collapse-rule.md),
+[Iterative Loop](./iterative-loop.md)

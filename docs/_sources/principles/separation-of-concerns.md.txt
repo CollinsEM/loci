@@ -1,0 +1,40 @@
+---
+title: Separation of Concerns Principle
+category: Foundational Principles
+status: normative
+audience: both
+---
+
+# Separation of Concerns Principle
+
+Loci strictly separates two roles:
+
+| Role | Responsibility | Artifact |
+|------|---------------|---------|
+| **Application developer** | Declares *what* to compute via `$rule` source syntax | `.loci` source files |
+| **Runtime implementor** | Decides *how* to execute (scheduling, parallelism, memory) | Runtime + preprocessor |
+
+These concerns must not leak into each other.
+
+## Normative Boundary
+
+- Application source code must not contain parallel directives, communication
+  calls, or any reference to the number of processes or threads.
+- The runtime must faithfully execute the application developer's declarations
+  without requiring knowledge of the physical problem being solved.
+
+## Two-Document Boundary
+
+This principle shapes the structure of the specification itself:
+
+- The **Loci Application Developer Reference** (this document) addresses the
+  application developer's view: what to declare, what the declarations mean,
+  and what the runtime is obligated to do on the developer's behalf.
+- The **Loci Runtime Specification** (a separate document) is the conformance
+  specification for runtime implementors. C++ class hierarchies, registration
+  mechanisms, preprocessor obligations, and scheduler algorithms appear only
+  there.
+
+---
+
+*See also:* [Parallelism Transparency](./parallelism-transparency.md)

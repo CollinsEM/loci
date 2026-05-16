@@ -1,0 +1,35 @@
+---
+title: $include
+category: Loci Source Language
+status: normative
+---
+
+# $include
+
+The **`$include`** directive inserts the contents of a named Loci header file (`.lh`)
+into the current translation unit, analogous to the C/C++ `#include` directive. `.lh`
+files typically contain only [$type](./dollar-type.md) declarations and
+are the standard mechanism for sharing type information across multiple `.loci` source
+files.
+
+## Syntax
+
+```cpp
+$include "header.lh"
+```
+
+## Behavioural Guarantees
+
+- The contents of the named file are read verbatim and processed as if they appeared
+  inline at the point of the `$include` directive.
+- `$type` declaration lines from included files are *suppressed* in the generated
+  output code. The preprocessor consumes the type information internally but does not
+  emit duplicate type declarations that would cause errors when the generated code is
+  compiled.
+- A `.lh` file may be `$include`d from any number of `.loci` files without causing
+  redeclaration errors, provided all declarations are consistent.
+
+---
+
+*See also:* [$type declaration](./dollar-type.md),
+[$rule syntax](./dollar-rule.md)

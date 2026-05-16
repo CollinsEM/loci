@@ -2,12 +2,10 @@
 <html class="no-js" lang="en" data-content_root="./">
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Foundational Principles" href="principles/index.html">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="#"><link rel="search" title="Search" href="search.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Loci Specification</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 --><title>Index - Loci Specification</title>
+<link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
     
@@ -161,7 +159,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="#"><div class="brand">Loci Specification</div></a>
+      <a href="index.html"><div class="brand">Loci Specification</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -172,7 +170,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -180,7 +178,7 @@
   <aside class="sidebar-drawer">
     <div class="sidebar-container">
       
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="#">
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
   <span class="sidebar-brand-text">Loci Specification</span>
   
@@ -315,13 +313,7 @@
           <span>Back to top</span>
         </a>
         <div class="content-icon-container">
-          <div class="view-this-page">
-  <a class="muted-link" href="_sources/index.md.txt" title="View this page">
-    <svg><use href="#svg-eye"></use></svg>
-    <span class="visually-hidden">View this page</span>
-  </a>
-</div>
-<div class="theme-toggle-container theme-toggle-content">
+          <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
               <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
               <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
@@ -329,185 +321,15 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="loci-framework-specification-wiki">
-<h1>Loci Framework Specification — Wiki<a class="headerlink" href="#loci-framework-specification-wiki" title="Link to this heading">¶</a></h1>
-<p><strong>Loci Application Developer Reference</strong> · Draft 0.7.0 · May 2026</p>
-<p>Complete reference documentation for writing Loci applications. Covers the full
-developer-facing surface: foundational principles, core data model, rule types,
-scheduling model, program lifecycle, and standard modules (FVM). Pages use
-<code class="docutils literal notranslate"><span class="pre">[wikilinks](./wikilinks.md)</span></code> for cross-references and are compatible with Obsidian, Emacs
-org-mode (via <code class="docutils literal notranslate"><span class="pre">pandoc</span></code>), and Sphinx/MyST.</p>
-<hr class="docutils" />
-<section id="foundational-principles">
-<h2>Foundational Principles<a class="headerlink" href="#foundational-principles" title="Link to this heading">¶</a></h2>
-<blockquote>
-<div><p>These four principles are architectural commitments, not implementation choices.
-Every specification decision is evaluated against them.</p>
-</div></blockquote>
-<ul class="simple">
-<li><p><a class="reference internal" href="principles/parallelism-transparency.html"><span class="std std-doc">Parallelism Transparency</span></a></p></li>
-<li><p><a class="reference internal" href="principles/static-schedule.html"><span class="std std-doc">Static Schedule</span></a></p></li>
-<li><p><a class="reference internal" href="principles/data-driven-computation.html"><span class="std std-doc">Data-Driven Computation</span></a></p></li>
-<li><p><a class="reference internal" href="principles/separation-of-concerns.html"><span class="std std-doc">Separation of Concerns</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="core-data-model">
-<h2>Core Data Model<a class="headerlink" href="#core-data-model" title="Link to this heading">¶</a></h2>
-<p>Entities, entity sets, and the container types that map entity sets to values.</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="core-data-model/entity.html"><span class="std std-doc">Entity</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/entity-set.html"><span class="std std-doc">EntitySet</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/relation.html"><span class="std std-doc">Relation</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/store.html"><span class="std std-doc">store</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/store-vec.html"><span class="std std-doc">storeVec</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/store-mat.html"><span class="std std-doc">storeMat</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/map.html"><span class="std std-doc">Map</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/map-vec.html"><span class="std std-doc">MapVec</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/multi-map.html"><span class="std std-doc">multiMap</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/param.html"><span class="std std-doc">param</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/blackbox.html"><span class="std std-doc">blackbox</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/constraint.html"><span class="std std-doc">constraint</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/options-list.html"><span class="std std-doc">options_list</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/data-schema-traits.html"><span class="std std-doc">data_schema_traits</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/array.html"><span class="std std-doc">Array&lt;T,N&gt;</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/vector3d.html"><span class="std std-doc">vector3d&lt;T&gt;</span></a></p></li>
-<li><p><a class="reference internal" href="core-data-model/vector2d.html"><span class="std std-doc">vector2d&lt;T&gt;</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="rule-system">
-<h2>Rule System<a class="headerlink" href="#rule-system" title="Link to this heading">¶</a></h2>
-<p>The rule types and constructs that express computations in Loci.</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="rule-system/rule.html"><span class="std std-doc">Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/pointwise-rule.html"><span class="std std-doc">Pointwise Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/singleton-rule.html"><span class="std std-doc">Singleton Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/unit-rule.html"><span class="std std-doc">Unit Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/apply-rule.html"><span class="std std-doc">Apply Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/build-rule.html"><span class="std std-doc">Build Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/advance-rule.html"><span class="std std-doc">Advance Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/collapse-rule.html"><span class="std std-doc">Collapse Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/default-rule.html"><span class="std std-doc">Default Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/optional-rule.html"><span class="std std-doc">Optional Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/constraint-rule.html"><span class="std std-doc">Constraint Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/conditional.html"><span class="std std-doc">Conditional</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/parametric-rule.html"><span class="std std-doc">Parametric Rule</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/priority-specifier.html"><span class="std std-doc">Priority Specifier</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/output.html"><span class="std std-doc">OUTPUT</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/prelude-block.html"><span class="std std-doc">Prelude Block</span></a></p></li>
-<li><p><a class="reference internal" href="rule-system/iterative-loop.html"><span class="std std-doc">Iterative Loop</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="scheduling-and-execution-model">
-<h2>Scheduling and Execution Model<a class="headerlink" href="#scheduling-and-execution-model" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="scheduling/scheduler.html"><span class="std std-doc">Scheduler</span></a></p></li>
-<li><p><a class="reference internal" href="scheduling/dependency-graph.html"><span class="std std-doc">Dependency Graph</span></a></p></li>
-<li><p><a class="reference internal" href="scheduling/promote.html"><span class="std std-doc">promote</span></a></p></li>
-<li><p><a class="reference internal" href="scheduling/generalize.html"><span class="std std-doc">generalize</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="distributed-execution">
-<h2>Distributed Execution<a class="headerlink" href="#distributed-execution" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="distributed-execution/ghost-entity.html"><span class="std std-doc">Ghost Entity</span></a></p></li>
-<li><p><a class="reference internal" href="distributed-execution/halo-exchange.html"><span class="std std-doc">Halo Exchange</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="program-lifecycle">
-<h2>Program Lifecycle<a class="headerlink" href="#program-lifecycle" title="Link to this heading">¶</a></h2>
-<p>The programmatic interface that appears in an application’s <code class="docutils literal notranslate"><span class="pre">main()</span></code>.</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="program-lifecycle/init-finalize.html"><span class="std std-doc">Loci::Init / Loci::Finalize</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/global-rule-list.html"><span class="std std-doc">global_rule_list</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/rule-db.html"><span class="std std-doc">rule_db</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/load-module.html"><span class="std std-doc">Loci::load_module</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/fact-db.html"><span class="std std-doc">fact_db</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/get-allocation.html"><span class="std std-doc">get_allocation</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/vars-file.html"><span class="std std-doc">.vars File Format</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/read-vars.html"><span class="std std-doc">read_vars</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/make-query.html"><span class="std std-doc">Loci::makeQuery</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/hdf5-io.html"><span class="std std-doc">HDF5 I/O</span></a></p></li>
-<li><p><a class="reference internal" href="program-lifecycle/debugging.html"><span class="std std-doc">Debugging</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="standard-modules">
-<h2>Standard Modules<a class="headerlink" href="#standard-modules" title="Link to this heading">¶</a></h2>
-<p>Reusable Loci modules that ship with the framework.</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="fvm/index.html"><span class="std std-doc">FVM Module</span></a> — finite-volume mesh setup, metrics, gradients, MUSCL, PETSc solvers</p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="loci-source-language">
-<h2>Loci Source Language<a class="headerlink" href="#loci-source-language" title="Link to this heading">¶</a></h2>
-<p>Preprocessor syntax recognized by the <code class="docutils literal notranslate"><span class="pre">lpp</span></code> tool.</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="source-language/lpp.html"><span class="std std-doc">lpp (Loci Preprocessor)</span></a></p></li>
-<li><p><a class="reference internal" href="source-language/dollar-type.html"><span class="std std-doc">$type</span></a></p></li>
-<li><p><a class="reference internal" href="source-language/dollar-include.html"><span class="std std-doc">$include</span></a></p></li>
-<li><p><a class="reference internal" href="source-language/dollar-rule.html"><span class="std std-doc">$rule syntax</span></a></p></li>
-<li><p>[$<a class="reference internal" href="source-language/dollar-once.html"><span class="std std-doc">Once</span></a>]</p></li>
-<li><p><a class="reference internal" href="source-language/comments.html"><span class="std std-doc">Comments</span></a></p></li>
-<li><p><a class="reference internal" href="source-language/debugout.html"><span class="std std-doc">Loci::debugout</span></a></p></li>
-<li><p><a class="reference internal" href="source-language/prelude-compute-split.html"><span class="std std-doc">Prelude / Compute Split</span></a></p></li>
-<li><p><a class="reference internal" href="source-language/style-guide.html"><span class="std std-doc">Coding Style Guide</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="runtime-specification">
-<h2>Runtime Specification<a class="headerlink" href="#runtime-specification" title="Link to this heading">¶</a></h2>
-<p>Reference for framework and runtime developers implementing a conforming Loci backend,
-preprocessor, or scheduler.</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="runtime/index.html"><span class="std std-doc">Runtime Specification Overview</span></a></p></li>
-<li><p><a class="reference internal" href="runtime/rule-class-interface.html"><span class="std std-doc">C++ Rule Class Interface</span></a></p></li>
-<li><p><a class="reference internal" href="runtime/rule-registration.html"><span class="std std-doc">Rule Registration Mechanism</span></a></p></li>
-<li><p><a class="reference internal" href="runtime/scheduler-algorithm.html"><span class="std std-doc">Scheduler Algorithm</span></a></p></li>
-<li><p><a class="reference internal" href="runtime/lpp-conformance.html"><span class="std std-doc">lpp Conformance Obligations</span></a></p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="document-status">
-<h2>Document Status<a class="headerlink" href="#document-status" title="Link to this heading">¶</a></h2>
-<p>Each page carries two frontmatter fields:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Values</p></th>
-<th class="head"><p>Meaning</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">status</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">normative</span></code>, <code class="docutils literal notranslate"><span class="pre">draft</span></code>, <code class="docutils literal notranslate"><span class="pre">stub</span></code></p></td>
-<td><p>Editorial completeness</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">audience</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">application</span></code>, <code class="docutils literal notranslate"><span class="pre">runtime</span></code>, <code class="docutils literal notranslate"><span class="pre">both</span></code></p></td>
-<td><p>Which document the page belongs to</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Pages without an <code class="docutils literal notranslate"><span class="pre">audience</span></code> field are implicitly <code class="docutils literal notranslate"><span class="pre">application</span></code>-only. Pages marked
-<code class="docutils literal notranslate"><span class="pre">both</span></code> appear in both the Application Developer Reference and the Runtime
-Specification.</p>
-<!-- Sphinx navigation — hidden from page display -->
-<div class="toctree-wrapper compound">
-</div>
-</section>
+          
+<section class="genindex-section">
+  <h1 id="index">Index</h1>
+  <div class="genindex-jumpbox"></div>
 </section>
 
         </article>
@@ -515,15 +337,7 @@ Specification.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="principles/index.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">Foundational Principles</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
+          
           
         </div>
         <div class="bottom-of-page">
@@ -543,36 +357,8 @@ Specification.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">Loci Framework Specification — Wiki</a><ul>
-<li><a class="reference internal" href="#foundational-principles">Foundational Principles</a></li>
-<li><a class="reference internal" href="#core-data-model">Core Data Model</a></li>
-<li><a class="reference internal" href="#rule-system">Rule System</a></li>
-<li><a class="reference internal" href="#scheduling-and-execution-model">Scheduling and Execution Model</a></li>
-<li><a class="reference internal" href="#distributed-execution">Distributed Execution</a></li>
-<li><a class="reference internal" href="#program-lifecycle">Program Lifecycle</a></li>
-<li><a class="reference internal" href="#standard-modules">Standard Modules</a></li>
-<li><a class="reference internal" href="#loci-source-language">Loci Source Language</a></li>
-<li><a class="reference internal" href="#runtime-specification">Runtime Specification</a></li>
-<li><a class="reference internal" href="#document-status">Document Status</a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>

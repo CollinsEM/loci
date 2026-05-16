@@ -1,0 +1,50 @@
+---
+title: constraint
+category: Core Data Model
+status: normative
+---
+
+# constraint
+
+A **constraint** is a [Relation](./relation.md) whose value is a named
+[EntitySet](./entity-set.md). Constraints serve a dual role in rule heads.
+
+## Dual Semantics
+
+### 1. Domain Restriction
+
+When the valid domain $D$ (entities for which all rule inputs are satisfied) is a
+superset of the constraint set $C$, the rule executes only over $C$:
+
+$$C \subseteq D \implies \text{execute rule over } C$$
+
+### 2. Precondition Assertion
+
+If $D$ is a strict subset of $C$, the scheduler exits with an error:
+
+$$C \not\subseteq D \implies \text{scheduler error: constraint precondition violated}$$
+
+This is a deliberate correctness mechanism. By declaring a constraint, the developer
+asserts: *"this rule must execute on every entity in C; if it cannot, the problem setup
+is incorrect."*
+
+## Multiple Constraints
+
+A rule head may declare two or more constraints. The effective declared domain is the
+**intersection** of all declared constraint EntitySets, and the above deduction is
+applied to that intersection.
+
+## Special Constant
+
+`UNIVERSE` is a predefined constraint encompassing all entities, commonly used in unit
+rules whose output is a [param](./param.md).
+
+## Formal Definition
+
+$C : \{*\} \to 2^U$. For constraints $C_1, \ldots, C_k$ and valid domain $D$:
+effective constraint $C = C_1 \cap \cdots \cap C_k$. Execute over $C$ if
+$C \subseteq D$; abort if $C \not\subseteq D$.
+
+---
+
+*See also:* [EntitySet](./entity-set.md), [Scheduler](../scheduling/scheduler.md)

@@ -1,0 +1,32 @@
+---
+title: Data-Driven Computation Principle
+category: Foundational Principles
+status: normative
+audience: both
+---
+
+# Data-Driven Computation Principle
+
+Computation in Loci is driven entirely by **data availability**. A rule becomes
+eligible to execute when — and only when — all of its declared input relations
+exist in the [fact database](../program-lifecycle/fact-db.md) over the required entity
+domains.
+
+The programmer does not write explicit control flow, loops, or synchronisation
+barriers. These are derived automatically from the dependency structure of the
+rule set by the [scheduler](../scheduling/scheduler.md).
+
+## Implications
+
+- A rule with unsatisfied inputs is simply not scheduled. This is not an error;
+  it is how [optional rules](../rule-system/optional-rule.md) and pruning work.
+- A rule is not eligible until *all* inputs are present — partial satisfaction
+  does not trigger partial execution.
+- The scheduler determines the execution order; the programmer declares what is
+  needed, not when to compute it.
+
+---
+
+*See also:* [Scheduler](../scheduling/scheduler.md),
+[Dependency Graph](../scheduling/dependency-graph.md),
+[Optional Rule](../rule-system/optional-rule.md)

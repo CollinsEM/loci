@@ -1,0 +1,107 @@
+---
+title: fact_db
+category: Program Lifecycle
+status: normative
+---
+
+# fact_db
+
+The **`fact_db`** is the programmatic object that holds the fact database — the
+repository of all Relations known to the runtime at any point during execution. In
+`main()`, the application developer constructs a `fact_db` instance and populates it
+with existential facts before invoking `makeQuery`.
+
+## Key Operations
+
+**`facts.read_vars(varsFile, rdb)`** — Parses the named `.vars` file and populates the
+fact database with the values it contains. The `rule_db` argument is used as a type
+registry: `read_vars` consults the `default` and `optional` rule declarations in `rdb`
+to determine which variable names are known and what their types are. Default values are
+applied first; `.vars` file entries override them. Optional variables not present in
+the `.vars` file remain absent. The `rule_db` must be fully populated before
+`read_vars` is called.
+
+**`facts.get_allocation(n)`** — Allocates `n` fresh entity identifiers guaranteed to be
+unique within this fact database. Returns an EntitySet of the newly allocated entities.
+See [get_allocation](./get-allocation.md).
+
+**`facts.create_fact("name", container)`** — Inserts a named Loci container (`store`,
+`Map`, `constraint`, etc.) into the fact database under the given name, making it
+available as an existential fact for schedule construction. Any `param` registered this
+way *before* `read_vars` is called will also be recognised by the `.vars` file parser
+and settable by the user, behaving identically to a variable declared with a `default`
+rule.
+
+## Checkpoint and Restart
+
+**`facts.write_all_hdf5(filename)`** — Writes every container currently in the fact
+database into a single HDF5 file. Used to checkpoint the full solver state after a
+completed `makeQuery`:
+
+```cpp
+Loci::makeQuery(facts, rdb, "solution") ;
+facts.write_all_hdf5("restart.hdf5") ;
+```
+
+**`facts.read_all_hdf5(filename)`** — Reads all containers from a previously-written
+checkpoint file back into the fact database. The calling application must have
+pre-populated the fact database with the correct entity allocation (matching the
+original mesh topology) before calling `read_all_hdf5`:
+
+```cpp
+Loci::setupFVMGrid(facts, meshFile) ;
+setupBoundaryConditions(facts) ;
+createLowerUpper(facts) ;
+facts.read_all_hdf5("restart.hdf5") ;   // restore computed state
+Loci::makeQuery(facts, rdb, "solution") ;
+```
+
+These functions do not require `hdf5CreateFile`/`hdf5OpenFile` — they manage the
+file lifecycle internally.
+
+## Parallel Fact Distribution
+
+For parallel runs, facts loaded from disk must be redistributed across MPI ranks
+after reading:
+
+**`Loci::generate_scalable_distribution(facts, rdb)`** — Assigns entities to ranks
+using a scalable partitioning algorithm. Must be called after the mesh topology is
+established and before `makeQuery`.
+
+**`Loci::distribute_facts(facts, rdb)`** — Applies the distribution computed by
+`generate_scalable_distribution`, physically migrating container data to the
+owning ranks. Both functions are collective MPI operations.
+
+The standard parallel setup sequence:
+
+```cpp
+Loci::setupFVMGrid(facts, meshFile) ;
+setupBoundaryConditions(facts) ;
+createLowerUpper(facts) ;
+Loci::generate_scalable_distribution(facts, rdb) ;
+Loci::distribute_facts(facts, rdb) ;
+Loci::makeQuery(facts, rdb, "solution") ;
+```
+
+For single-process runs these calls are safe no-ops.
+
+## Canonical Population Sequence
+
+```cpp
+fact_db facts ;
+facts.read_vars(varsFile, rdb) ;         // params from .vars file
+Loci::setupFVMGrid(facts, meshFile) ;    // mesh topology + geometry
+setupBoundaryConditions(facts) ;         // boundary constraint EntitySets
+createLowerUpper(facts) ;                // derived topology for matrix assembly
+```
+
+After population, all items in the fact database are treated as existential facts by
+the scheduler. The fact database grows monotonically during schedule execution as
+derived Relations are added by rule execution.
+
+---
+
+*See also:* [get_allocation](./get-allocation.md),
+[read_vars](./read-vars.md),
+[HDF5 I/O](./hdf5-io.md),
+[Loci::makeQuery](./make-query.md)

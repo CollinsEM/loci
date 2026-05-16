@@ -1,0 +1,42 @@
+---
+title: FVM Module
+category: FVM Module
+status: normative
+---
+
+# FVM Module
+
+The **`fvm` module** provides reusable parametric rules and derived facts for
+building finite-volume solvers on unstructured meshes. Load it with
+`Loci::load_module("fvm", rdb)` and include `$include "FVM.lh"` in each
+`.loci` source file that references its types.
+
+---
+
+- [Overview](./overview.md) — loading, `$include "FVM.lh"`, canonical `main()` sequence
+- [VOG Mesh File Format](./vog-format.md) — HDF5 structure, face orientation convention, cluster encoding
+- [Mesh Topology](./mesh-topology.md) — facts from `setupFVMGrid`, boundary-condition naming, `lower`/`upper` maps
+- [Grid Metrics](./grid-metrics.md) — `area` (`.n`/`.sada`), `vol`, `cellcenter`, `facecenter`, `grid_vol`
+- [Spatial Gradients](./gradients.md) — `grads`/`gradv`/`gradv3d`, face variants, `X_f` boundary requirement
+- [MUSCL Extrapolation](./muscl-extrapolation.md) — `limiters`, `lefts`/`rights` and variants
+- [Nodal Interpolation](./nodal-interpolation.md) — `cell2node` family, plot-file pattern
+- [Norms and Surface Integrations](./norms-integrations.md) — `L2Norm`, `L1Norm`, `LinfNorm`, `integrateSurface`, `integrateFlux`
+- [PETSc Linear Solvers](./petsc-solvers.md) — `petscScalarSolve`, `petscBlockedSolve`, `X_B`/`X_D`/`X_L`/`X_U` convention
+- [Periodic Boundary Conditions](./periodic-bc.md) — `pmap`, `periodicTransform`, `rigid_transform`
+
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+gradients
+grid-metrics
+mesh-topology
+muscl-extrapolation
+nodal-interpolation
+norms-integrations
+overview
+periodic-bc
+petsc-solvers
+vog-format
+```

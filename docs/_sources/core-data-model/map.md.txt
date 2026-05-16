@@ -1,0 +1,33 @@
+---
+title: Map
+category: Core Data Model
+status: normative
+---
+
+# Map
+
+A **Map** is a [Relation](./relation.md) whose codomain is a single
+[Entity](./entity.md) identifier. Maps encode one-to-one or many-to-one
+structural (topological) relationships between entities.
+
+## Kernel Access Syntax
+
+Maps are used in rule kernels via the `map->relation` composition syntax, which
+navigates from a source entity to an adjacent entity and accesses a relation on that
+entity. Multiple maps may be chained (e.g., `cell2face->face2node->pos`). This syntax
+is valid for both reading inputs and writing outputs within a rule kernel.
+
+## Formal Definition
+
+$M : D \to U$.
+
+## Example
+
+`cl: {faces} → {cells}` maps each face to its left-adjacent cell; `cr` maps each
+face to its right-adjacent cell. Within a rule executing over faces, `$cl->$pressure`
+accesses the pressure of the left cell.
+
+---
+
+*See also:* [multiMap](./multi-map.md), [MapVec](./map-vec.md),
+[Relation](./relation.md)

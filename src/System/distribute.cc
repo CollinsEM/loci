@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -46,6 +46,306 @@ using std::sort ;
 
 namespace Loci {
 
+  std::vector<std::pair<int,entitySet> >
+  dataPartitionGeneral::partitionEntitySet(entitySet set) {
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    if(p==1) {
+      vector<std::pair<int,entitySet> > res ;
+      res.push_back(make_pair(0,set)) ;
+      return res ;
+    }
+    fatal(int(ptn.size()) != p) ;
+    std::vector<std::pair<int,entitySet> > splitlist ;
+    for(int i=0;i<p;++i) {
+      entitySet part = set&ptn[i] ;
+      if(part != EMPTY) {
+        splitlist.push_back(std::make_pair(i,part)) ;
+      }
+    }
+#ifdef DEBUG
+    entitySet sum ;
+    for(auto &elem : splitlist)
+      sum += elem.second ;
+    fatal(sum!=set) ;
+#endif
+    return splitlist ;
+  }
+
+  entitySet dataPartitionGeneral::getAllocation(int i) {
+#ifdef DEBUG
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    fatal(i<0 || i >= p) ;
+#endif
+    return ptn[i] ;
+  }
+  
+  std::vector<std::pair<int,entitySet> >
+  dataPartitionSplits::partitionEntitySet(entitySet set) {
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    if(p==1) {
+      vector<std::pair<int,entitySet> > res ;
+      res.push_back(make_pair(0,set)) ;
+      return res ;
+    }
+
+    fatal(int(splits.size()) != p+1) ;
+    // remove any entity not defined by the partition function
+    //    set -= interval(splits[0],splits[p]-1) ;
+    entitySet filter = interval(splits[0],splits[p]-1) ;
+    fatal((set - filter) != EMPTY) ;
+    std::vector<std::pair<int,entitySet> > splitlist ;
+    for(int i=0;i<p;++i) {
+      if(set == EMPTY)
+        break ;
+      if(set.Min() < splits[i+1]) {
+        interval ival(splits[i],splits[i+1]-1) ;
+        entitySet part = set&ival ;
+        //        set -= ival ;
+        splitlist.push_back(std::make_pair(i,part)) ;
+      }
+    }
+#ifdef DEBUG
+    entitySet sum ;
+    for(auto &elem : splitlist)
+      sum += elem.second ;
+    fatal(sum!=set) ;
+#endif
+    return splitlist ;
+  }
+
+  entitySet dataPartitionSplits::getAllocation(int i) {
+#ifdef DEBUG
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    fatal(i<0 || i >= p) ;
+#endif
+    return entitySet(interval(splits[i],splits[i+1]-1)) ;
+  }
+
+  std::vector<std::pair<int,entitySet> >
+  dataPartitionComputed::partitionEntitySet(entitySet set) {
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    if(p==1) {
+      vector<std::pair<int,entitySet> > res ;
+      res.push_back(make_pair(0,set)) ;
+      return res ;
+    }
+    
+    // remove any entity not defined by the partition function
+    //    set -= interval(start,start+delta*p-1) ;
+    fatal((set - interval(start,start+delta*p-1)) != EMPTY) ;
+    std::vector<std::pair<int,entitySet> > splitlist ;
+    while(set != EMPTY) {
+      int i = (set.Min()-start)/delta ;
+      int s1 = start+i*delta ;
+      interval ival(s1,s1+delta-1) ;
+      entitySet part = set&ival ;
+      //      set -= ival ;
+      splitlist.push_back(std::make_pair(i,part)) ;
+    }
+#ifdef DEBUG
+    entitySet sum ;
+    for(auto &elem : splitlist)
+      sum += elem.second ;
+    fatal(sum!=set) ;
+#endif
+    return splitlist ;
+  }
+
+  entitySet dataPartitionComputed::getAllocation(int i) {
+#ifdef DEBUG
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    fatal(i<0 || i >= p) ;
+#endif
+    int s1 = start+i*delta ;
+    return entitySet(interval(s1,s1+delta-1)) ;
+  }
+
+  void gatherCommSchedule::generateSchedule(entitySet request,
+                                            dataPartitionP ptn) {
+    comm = ptn->comm ;
+    MPI_Comm_size(comm,&p) ;
+    MPI_Comm_rank(comm,&r) ;
+    // Divide set into parts based on processor that owns it
+    Loci::debugout << "request = " << request << endl ;
+
+    vector<pair<int,entitySet> > recv_sets = ptn->partitionEntitySet(request) ;
+    Loci::debugout << "recv_sets = " << endl ;
+    for(size_t i = 0 ;i< recv_sets.size() ;++i)
+      Loci::debugout << recv_sets[i].first << " - " << recv_sets[i].second
+                     << endl ;
+    // Transpose this to get sets that we need to send to gather request
+    vector<pair<int,entitySet> > send_sets =
+      transpose_entitySet(recv_sets, comm) ;
+
+
+    // Setup Information for Sending Side
+    int send_sz = 0 ;
+    { vector<int> tmp(p,0) ; send_sizes.swap(tmp) ; }
+    for(auto i = send_sets.begin();i!=send_sets.end();++i) {
+      send_sz += i->second.size() ;
+      send_sizes[i->first] = i->second.size() ;
+    }
+
+    // Entities to gather from sending side
+    { vector<int> tmp(send_sz) ; send_entities.swap(tmp) ; }
+    int j = 0 ;
+    for(auto i = send_sets.begin();i!=send_sets.end();++i) {
+      FORALL(i->second,ii) {
+        send_entities[j] = ii ;
+        j++ ;
+      } ENDFORALL ;
+    }
+
+    // Recv data sizes
+    { vector<int> tmp(p,0) ; recv_sizes.swap(tmp) ; }
+    for(auto i = recv_sets.begin();i!=recv_sets.end();++i)
+      recv_sizes[i->first] = i->second.size() ;
+
+    // Compute offsets into send and recv buffers
+    { vector<int> tmp(p,0) ; send_offsets.swap(tmp) ; }
+    { vector<int> tmp(p,0) ; recv_offsets.swap(tmp) ; }
+    for(int i=1;i<p;++i) {
+      send_offsets[i] = send_offsets[i-1]+send_sizes[i-1] ;
+      recv_offsets[i] = recv_offsets[i-1]+recv_sizes[i-1] ;
+    }
+
+#ifdef DEBUG
+    // Sanity Check
+    size_t buff_size = 0 ;
+    for(int i=0;i<p;++i)
+        buff_size += send_sizes[i] ;
+    warn(buff_size != send_entities.size()) ;
+#endif
+
+  }
+
+  std::vector<std::pair<int, entitySet> >
+  transpose_entitySet(const std::vector<std::pair<int,entitySet> > &in,
+                      MPI_Comm comm) {
+    int np ;
+    MPI_Comm_size(comm, &np) ;
+    
+    
+    vector<bool> pack_interval(np,false) ;
+    // first compute the send count and displacement
+    vector<int> send_counts(np,0) ;
+    vector<int> send_loc(np,-1) ;
+    for(size_t i=0;i<in.size();++i) {
+      // since if sending intervals, the send size will
+      // be 2 * the number of intervals, then if that is
+      // larger than the total element size, then we choose
+      // to communicate elements directly, otherwise, we
+      // choose to send the intervals
+      int num_intervals = in[i].second.num_intervals() ;
+      num_intervals*=2 ;
+      int size = in[i].second.size() ;
+      int j = in[i].first ;
+      send_loc[j] = i ;
+      if(num_intervals >= size) {
+        pack_interval[j] = false ;
+        // +1 since we include a flag in the head to indicate
+        // whether this is interval, or elements packed
+        send_counts[j] = size + 1 ;
+      } else {
+        pack_interval[j] = true ;
+        send_counts[j] = num_intervals + 1 ;
+      }
+    }
+
+    vector<int> send_displs(np,0) ;
+    send_displs[0] = 0 ;
+    for(int i=1;i<np;++i)
+      send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+    // then communicate this get the recv info.
+    vector<int> recv_counts(np,0) ;
+    MPI_Alltoall(&send_counts[0], 1, MPI_INT,
+                 &recv_counts[0], 1, MPI_INT, comm) ;
+    vector<int> recv_displs(np,0) ;
+    recv_displs[0] = 0 ;
+    for(int i=1;i<np;++i)
+      recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+    // all info. gathered, ready to do MPI_Alltoallv
+    // first pack data into a raw buffer.
+    int buf_size = send_counts[np-1] +
+      send_displs[np-1] ;
+    
+    vector<int> send_buf(buf_size) ;
+    int buf_idx = 0 ;
+    for(int i=0;i<np;++i) {
+      // only pack non-empty entitySet
+      if(send_counts[i] == 0)
+        continue ;
+
+      const entitySet& eset = in[send_loc[i]].second ;
+      if(pack_interval[i]) {
+        // packing intervals
+        send_buf[buf_idx++] = 1 ; // set flag to indicate
+                                  // that this is intervals packed
+        for(size_t k=0;k<eset.num_intervals();++k) {
+          send_buf[buf_idx++] = eset[k].first ;
+          send_buf[buf_idx++] = eset[k].second ;
+        }
+      } else {
+        send_buf[buf_idx++] = 0 ; // elements directly packed
+        for(entitySet::const_iterator ei=eset.begin();
+            ei!=eset.end();++ei,++buf_idx)
+          send_buf[buf_idx] = *ei ;
+      }
+    }
+    // allocate receive buffer
+    int recv_size = recv_displs[np-1] +
+      recv_counts[np-1] ;
+
+    vector<int> recv_buf(recv_size) ;
+    // communicate
+    MPI_Alltoallv(&send_buf[0], &send_counts[0],
+                  &send_displs[0], MPI_INT,
+                  &recv_buf[0], &recv_counts[0],
+                  &recv_displs[0], MPI_INT, comm) ;
+    // release buffers that are not needed
+    vector<int>().swap(send_counts) ;
+    vector<int>().swap(send_displs) ;
+    vector<int>().swap(send_buf) ;
+
+    // unpack recv buffer into a vector of entitySet
+    vector<pair<int,entitySet> > out ;
+
+    for(int i=0;i<np;++i) {
+      int b = recv_displs[i] ;
+      int e = b + recv_counts[i] ;
+      if(b == e)
+        continue ;              // empty buffer
+
+      entitySet eset ;
+      int flag = recv_buf[b] ;
+      ++b ;
+      if(flag == 1) {
+        // if packed with interval
+        for(;b<e;b+=2) {
+          int l = recv_buf[b] ;
+          int u = recv_buf[b+1] ;
+          eset += interval(l,u) ;
+        }
+      } else {
+        // packed with elements
+        for(;b<e;++b) {
+          eset += recv_buf[b] ;
+        }
+      }
+      out.push_back(make_pair(i,eset)) ;
+    }
+
+    return out ;
+    // the end...
+  }
+
+  
   std::vector<entitySet>
   transpose_entitySet(const std::vector<entitySet>& in, MPI_Comm comm) {
     int np ;
@@ -1493,1551 +1793,5 @@ namespace Loci {
     }
   }
 
-#ifdef DYNAMICSCHEDULING
-  void
-  fill_store(storeRepP src, const Map* src_pack,
-             storeRepP dst, const dMap* dst_unpack,
-             const std::vector<P2pCommInfo>& send,
-             const std::vector<P2pCommInfo>& recv,
-             MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // we will need to communicate the size of the send buffer
-    // to the receiving process so that they can allocate buffer.
-    // we also need to communicate the pack entitySet in sequence
-    // to the receiving processes so that they can properly unpack
-    // the buffer.
-    // normall, we need to send 3 messages: 1) the size of the total
-    // packed buffer to send to a particular process, 2) the size
-    // of the sequence to send, 3) the sequence itself. In order to
-    // save message start-up time, we combine 1) and 2) messages
-    // together into one message since they are both integer type.
-    vector<int> pack_size(send.size(),0) ;
-    vector<int> seq_size(send.size(),0) ;
-    vector<bool> pack_interval(send.size(),false) ;
-    vector<sequence> pack_seq(send.size()) ;
-    // compute the pack size first
-    for(size_t i=0;i<send.size();++i)
-      pack_size[i] = src->pack_size(send[i].local_dom) ;
-    // compute the packing sequence in global numbering
-    // and also the way to send the sequence (in intervals
-    // or direct elements), and the sequence send size.
-    for(size_t i=0;i<send.size();++i) {
-      // NOTE, we cannot use send[i].global_dom
-      // as the pack sequence because if in deed
-      // the src uses local numbering, then the
-      // global numbering converted to a sequence
-      // is not guaranteed to match the exact order
-      // of the pack function, we therefore need
-      // to map the sequence from the local numbering
-      // directly
-      // (error) pack_seq[i] = sequence(send[i].global_dom) ;
-      sequence& ps = pack_seq[i] ;
-      if(src_pack) {
-        for(entitySet::const_iterator ei=send[i].local_dom.begin();
-            ei!=send[i].local_dom.end();++ei)
-          ps += (*src_pack)[*ei] ;
-      } else {
-        ps = sequence(send[i].local_dom) ;
-      }
-      int interval_size = pack_seq[i].num_intervals() ;
-      int elem_size = pack_seq[i].size() ;
-      if(2*interval_size < elem_size) {
-        pack_interval[i] = true ;
-        seq_size[i] = 2*interval_size + 1 ;
-      } else {
-        pack_interval[i] = false ;
-        seq_size[i] = elem_size + 1 ;
-      }
-    }
-    // now send the total pack size and seq size first
-    vector<int> recv_msg_size(recv.size()*2, 0) ;
-
-    vector<MPI_Request> requests(recv.size()) ;
-    // first post recv requests to avoid deadlock
-    int req = 0 ;
-    // this index is used to optimize in the case of sending/receiving
-    // messages to itself, we instead would just do a local copy
-    int self_msg_buffer_idx = -1 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the buffer index
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(&recv_msg_size[i*2], 2, MPI_INT,
-                  recv[i].proc, recv[i].proc, comm, &requests[req++]) ;
-      }
-    }
-    // then post send requests
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // just do a copy
-        recv_msg_size[2*self_msg_buffer_idx] = pack_size[i] ;
-        // this is another optimization, we do not need to
-        // communicate the packing sequence for myself.
-        // by setting the sequence size to be 0
-        recv_msg_size[2*self_msg_buffer_idx+1] = 0 ;
-      } else {
-        int tmp[2] ;
-        // first one is the total pack size (for the data)
-        tmp[0] = pack_size[i] ;
-        // second one is the pack sequence size
-        tmp[1] = seq_size[i] ;
-        MPI_Send(tmp, 2, MPI_INT, send[i].proc, rank, comm) ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then we actually need to communicate the packing
-    // sequence to all the receiving processes
-
-    // allocate recv buffer first
-    int total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i+1] ;
-    int* unpack_seq_recv_buffer = new int[total_recv_size] ;
-    int** unpack_seq_recv_buffer_ptr = new int*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_seq_recv_buffer_ptr[0] = unpack_seq_recv_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_seq_recv_buffer_ptr[i] = recv_msg_size[2*(i-1)+1] +
-          unpack_seq_recv_buffer_ptr[i-1] ;
-    }
-
-    // post recv requests (to receive the sequence)
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc != rank)
-        MPI_Irecv(unpack_seq_recv_buffer_ptr[i],
-                  recv_msg_size[2*i+1],
-                  MPI_INT, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-    }
-    // send the sequence
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc != rank) {
-        // allocate a send buffer
-        vector<int> buf(seq_size[i]) ;
-        // pack it
-        if(pack_interval[i]) {
-          // pack intervals
-          buf[0] = 1 ;    // indicate following contents are intervals
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(size_t k=0;k<seq.num_intervals();++k) {
-            buf[count++] = seq[k].first ;
-            buf[count++] = seq[k].second ;
-          }
-        } else {
-          buf[0] = 0 ;          // we are packing elements
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(sequence::const_iterator si=seq.begin();
-              si!=seq.end();++si,++count)
-            buf[count] = *si ;
-        }
-        // send the buffer
-        MPI_Send(&buf[0], seq_size[i], MPI_INT, send[i].proc, rank, comm) ;
-      } else {
-        // remember the buffer index for later retrieval
-        self_msg_buffer_idx = i ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the sequence buffer
-    vector<sequence> unpack_seq(recv.size()) ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // just copy
-        unpack_seq[i] = pack_seq[self_msg_buffer_idx] ;
-      } else {
-        // extract the first integer to see if the
-        // packed stuff is interval or element
-        sequence& seq = unpack_seq[i] ;
-        int* p = unpack_seq_recv_buffer_ptr[i] ;
-        int size = recv_msg_size[2*i+1] - 1 ;
-        if(*p == 1) {
-          // extract intervals
-          ++p ;
-          for(int k=0;k<size;k+=2) {
-            int b = *p ; ++p ;
-            int e = *p ; ++p ;
-            seq += interval(b,e) ;
-          }
-        } else {
-          // extract elements
-          ++p ;
-          for(int k=0;k<size;++k,++p)
-            seq += *p ;
-        }
-      }
-    }
-    // release all unnecessary buffers
-    vector<int>().swap(seq_size) ;
-    vector<bool>().swap(pack_interval) ;
-    vector<sequence>().swap(pack_seq) ;
-    delete[] unpack_seq_recv_buffer_ptr ;
-    delete[] unpack_seq_recv_buffer ;
-
-    // remap the unpack sequence to the dst numbering
-    if(dst_unpack != 0) {
-      for(size_t i=0;i<recv.size();++i)
-        unpack_seq[i] = remap_sequence(unpack_seq[i], *dst_unpack) ;
-    }
-
-    // now it is time for us to send/recv the data
-
-    // allocate a recv buffer first
-    total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i] ;
-    unsigned char* unpack_buffer = new unsigned char[total_recv_size] ;
-    unsigned char** unpack_buffer_ptr = new unsigned char*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_buffer_ptr[0] = unpack_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_buffer_ptr[i] = recv_msg_size[2*(i-1)] +
-          unpack_buffer_ptr[i-1] ;
-    }
-    // post recv requests
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the idx
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(unpack_buffer_ptr[i], recv_msg_size[2*i],
-                  MPI_PACKED, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-      }
-    }
-    // actually pack and send
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // no need to communicate, directly pack
-        // into the receiving buffer
-        unsigned char* pack_buffer =
-          unpack_buffer_ptr[self_msg_buffer_idx] ;
-        int position = 0 ;
-        if(src_pack != 0)
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom, *src_pack) ;
-        else
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom) ;
-      } else {
-        // first allocate the pack buffer
-        unsigned char* pack_buffer = new unsigned char[pack_size[i]] ;
-        // the do the pack
-        int position = 0 ;
-        if(src_pack != 0)
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom, *src_pack) ;
-        else
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom) ;
-        // send
-        MPI_Send(pack_buffer, pack_size[i],
-                 MPI_PACKED, send[i].proc, rank, comm) ;
-        delete[] pack_buffer ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the receiving buffer
-    for(size_t i=0;i<recv.size();++i) {
-      int position = 0 ;
-      int unpack_buffer_size = recv_msg_size[2*i] ;
-      if(dst_unpack != 0)
-        dst->unpack(unpack_buffer_ptr[i], position,
-                    unpack_buffer_size, unpack_seq[i], *dst_unpack) ;
-      else
-        dst->unpack(unpack_buffer_ptr[i], position,
-                    unpack_buffer_size, unpack_seq[i]) ;
-    }
-    // release recv buffer and finishing up
-    delete[] unpack_buffer_ptr ;
-    delete[] unpack_buffer ;
-    // end of function fill_store
-  }
-
-  void
-  expand_store(storeRepP src,
-               const Map* src_pack, const dMap* src_unpack,
-               storeRepP dst,
-               const dMap* dst_unpack,
-               const entitySet& request,
-               const std::vector<entitySet>& src_ptn, MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // first we'll need to generate a send/recv structure
-    vector<P2pCommInfo> send, recv ;
-    get_p2p_comm(src_ptn, request,
-                 src_unpack, dst_unpack, comm, send, recv) ;
-
-    fill_store(src, src_pack, dst, dst_unpack, send, recv, comm) ;
-  }
-  
-  void
-  reduce_store(storeRepP src, const Map* src_pack,
-               storeRepP dst, const dMap* dst_unpack,
-               const std::vector<P2pCommInfo>& send,
-               const std::vector<P2pCommInfo>& recv,
-               CPTR<joiner> join_op, MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // we will need to communicate the size of the send buffer
-    // to the receiving process so that they can allocate buffer.
-    // we also need to communicate the pack entitySet in sequence
-    // to the receiving processes so that they can properly unpack
-    // the buffer.
-    // normall, we need to send 3 messages: 1) the size of the total
-    // packed buffer to send to a particular process, 2) the size
-    // of the sequence to send, 3) the sequence itself. In order to
-    // save message start-up time, we combine 1) and 2) messages
-    // together into one message since they are both integer type.
-    vector<int> pack_size(send.size(),0) ;
-    vector<int> seq_size(send.size(),0) ;
-    vector<bool> pack_interval(send.size(),false) ;
-    vector<sequence> pack_seq(send.size()) ;
-    // compute the pack size first
-    for(size_t i=0;i<send.size();++i)
-      pack_size[i] = src->pack_size(send[i].local_dom) ;
-    // compute the packing sequence in global numbering
-    // and also the way to send the sequence (in intervals
-    // or direct elements), and the sequence send size.
-    for(size_t i=0;i<send.size();++i) {
-      // NOTE, we cannot use send[i].global_dom
-      // as the pack sequence because if in deed
-      // the src uses local numbering, then the
-      // global numbering converted to a sequence
-      // is not guaranteed to match the exact order
-      // of the pack function, we therefore need
-      // to map the sequence from the local numbering
-      // directly
-      // (error) pack_seq[i] = sequence(send[i].global_dom) ;
-      sequence& ps = pack_seq[i] ;
-      if(src_pack) {
-        for(entitySet::const_iterator ei=send[i].local_dom.begin();
-            ei!=send[i].local_dom.end();++ei)
-          ps += (*src_pack)[*ei] ;
-      } else {
-        ps = sequence(send[i].local_dom) ;
-      }
-      int interval_size = pack_seq[i].num_intervals() ;
-      int elem_size = pack_seq[i].size() ;
-      if(2*interval_size < elem_size) {
-        pack_interval[i] = true ;
-        seq_size[i] = 2*interval_size + 1 ;
-      } else {
-        pack_interval[i] = false ;
-        seq_size[i] = elem_size + 1 ;
-      }
-    }
-    // now send the total pack size and seq size first
-    vector<int> recv_msg_size(recv.size()*2, 0) ;
-
-    vector<MPI_Request> requests(recv.size()) ;
-    // first post recv requests to avoid deadlock
-    int req = 0 ;
-    // this index is used to optimize in the case of sending/receiving
-    // messages to itself, we instead would just do a local copy
-    int self_msg_buffer_idx = -1 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the buffer index
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(&recv_msg_size[i*2], 2, MPI_INT,
-                  recv[i].proc, recv[i].proc, comm, &requests[req++]) ;
-      }
-    }
-    // then post send requests
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // just do a copy
-        recv_msg_size[2*self_msg_buffer_idx] = pack_size[i] ;
-        // this is another optimization, we do not need to
-        // communicate the packing sequence for myself.
-        // by setting the sequence size to be 0
-        recv_msg_size[2*self_msg_buffer_idx+1] = 0 ;
-      } else {
-        int tmp[2] ;
-        // first one is the total pack size (for the data)
-        tmp[0] = pack_size[i] ;
-        // second one is the pack sequence size
-        tmp[1] = seq_size[i] ;
-        MPI_Send(tmp, 2, MPI_INT, send[i].proc, rank, comm) ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then we actually need to communicate the packing
-    // sequence to all the receiving processes
-
-    // allocate recv buffer first
-    int total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i+1] ;
-    int* unpack_seq_recv_buffer = new int[total_recv_size] ;
-    int** unpack_seq_recv_buffer_ptr = new int*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_seq_recv_buffer_ptr[0] = unpack_seq_recv_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_seq_recv_buffer_ptr[i] = recv_msg_size[2*(i-1)+1] +
-          unpack_seq_recv_buffer_ptr[i-1] ;
-    }
-
-    // post recv requests (to receive the sequence)
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc != rank)
-        MPI_Irecv(unpack_seq_recv_buffer_ptr[i],
-                  recv_msg_size[2*i+1],
-                  MPI_INT, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-    }
-    // send the sequence
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc != rank) {
-        // allocate a send buffer
-        vector<int> buf(seq_size[i]) ;
-        // pack it
-        if(pack_interval[i]) {
-          // pack intervals
-          buf[0] = 1 ;    // indicate following contents are intervals
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(size_t k=0;k<seq.num_intervals();++k) {
-            buf[count++] = seq[k].first ;
-            buf[count++] = seq[k].second ;
-          }
-        } else {
-          buf[0] = 0 ;          // we are packing elements
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(sequence::const_iterator si=seq.begin();
-              si!=seq.end();++si,++count)
-            buf[count] = *si ;
-        }
-        // send the buffer
-        MPI_Send(&buf[0], seq_size[i], MPI_INT, send[i].proc, rank, comm) ;
-      } else {
-        // remember the buffer index for later retrieval
-        self_msg_buffer_idx = i ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the sequence buffer
-    vector<sequence> unpack_seq(recv.size()) ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // just copy
-        unpack_seq[i] = pack_seq[self_msg_buffer_idx] ;
-      } else {
-        // extract the first integer to see if the
-        // packed stuff is interval or element
-        sequence& seq = unpack_seq[i] ;
-        int* p = unpack_seq_recv_buffer_ptr[i] ;
-        int size = recv_msg_size[2*i+1] - 1 ;
-        if(*p == 1) {
-          // extract intervals
-          ++p ;
-          for(int k=0;k<size;k+=2) {
-            int b = *p ; ++p ;
-            int e = *p ; ++p ;
-            seq += interval(b,e) ;
-          }
-        } else {
-          // extract elements
-          ++p ;
-          for(int k=0;k<size;++k,++p)
-            seq += *p ;
-        }
-      }
-    }
-    // release all unnecessary buffers
-    vector<int>().swap(seq_size) ;
-    vector<bool>().swap(pack_interval) ;
-    vector<sequence>().swap(pack_seq) ;
-    delete[] unpack_seq_recv_buffer_ptr ;
-    delete[] unpack_seq_recv_buffer ;
-
-    // remap the unpack sequence to the dst numbering
-    if(dst_unpack != 0) {
-      for(size_t i=0;i<recv.size();++i)
-        unpack_seq[i] = remap_sequence(unpack_seq[i], *dst_unpack) ;
-    }
-
-    // now it is time for us to send/recv the data
-
-    // allocate a recv buffer first
-    total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i] ;
-    unsigned char* unpack_buffer = new unsigned char[total_recv_size] ;
-    unsigned char** unpack_buffer_ptr = new unsigned char*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_buffer_ptr[0] = unpack_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_buffer_ptr[i] = recv_msg_size[2*(i-1)] +
-          unpack_buffer_ptr[i-1] ;
-    }
-    // post recv requests
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the idx
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(unpack_buffer_ptr[i], recv_msg_size[2*i],
-                  MPI_PACKED, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-      }
-    }
-    // actually pack and send
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // no need to communicate, directly pack
-        // into the receiving buffer
-        unsigned char* pack_buffer =
-          unpack_buffer_ptr[self_msg_buffer_idx] ;
-        int position = 0 ;
-        if(src_pack != 0)
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom, *src_pack) ;
-        else
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom) ;
-      } else {
-        // first allocate the pack buffer
-        unsigned char* pack_buffer = new unsigned char[pack_size[i]] ;
-        // the do the pack
-        int position = 0 ;
-        if(src_pack != 0)
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom, *src_pack) ;
-        else
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom) ;
-        // send
-        MPI_Send(pack_buffer, pack_size[i],
-                 MPI_PACKED, send[i].proc, rank, comm) ;
-        delete[] pack_buffer ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the receiving buffer
-    entitySet recv_domain ;
-    for(size_t i=0;i<recv.size();++i)
-      recv_domain += recv[i].global_dom ;
-    if(dst_unpack != 0)
-      recv_domain = remap_entitySet(recv_domain, *dst_unpack) ;
-
-    // create a tmp one for reduction purpose.
-    storeRepP tmp = dst->new_store(recv_domain) ;
-    
-    for(size_t i=0;i<recv.size();++i) {
-      int position = 0 ;
-      int unpack_buffer_size = recv_msg_size[2*i] ;
-      if(dst_unpack != 0) {
-        // unpack to tmp first
-        tmp->unpack(unpack_buffer_ptr[i], position,
-                    unpack_buffer_size, unpack_seq[i], *dst_unpack) ;
-      } else {
-        tmp->unpack(unpack_buffer_ptr[i], position,
-                    unpack_buffer_size, unpack_seq[i]) ;
-      }
-      // then join the contents to dst
-      join_op->SetArgs(dst,   /*target rep*/
-                       tmp    /*source rep*/) ;
-      join_op->Join(unpack_seq[i]) ;
-    }
-    // release recv buffer and finishing up
-    delete[] unpack_buffer_ptr ;
-    delete[] unpack_buffer ;
-    // end of function reduce_store
-  }
-  
-  void
-  reduce_store(storeRepP src,
-               // src also needs unpack because the "request"
-               // is made in the global numbering scheme and
-               // the src needs to understand that in its
-               // own local number
-               const Map* src_pack, const dMap* src_unpack,
-               storeRepP dst,
-               // dst does not need pack (obviously because it
-               // just receive data)
-               const dMap* dst_unpack,
-               const entitySet& request,
-               CPTR<joiner> join_op,
-               const std::vector<entitySet>& dst_ptn, MPI_Comm comm) {
-    int rank, np ;
-    MPI_Comm_rank(comm, &rank) ;
-    MPI_Comm_size(comm, &np) ;
-    // first we'll need to generate a send/recv structure
-    vector<P2pCommInfo> send, recv ;
-    // since this is a reduce, so we actually need to
-    // reverse the send/recv pair as in the expand operation.
-    get_p2p_comm(dst_ptn, request,
-                 dst_unpack, src_unpack, comm, recv, send) ;
-
-    reduce_store(src, src_pack, dst, dst_unpack,
-                 send, recv, join_op, comm) ;
-    // end of function reduce_store
-  }
-
-  // this version uses the pack_size(e,packed) inside
-  entitySet
-  fill_store2(storeRepP src, const Map* src_pack,
-              storeRepP dst, const dMap* dst_unpack,
-              const std::vector<P2pCommInfo>& send,
-              const std::vector<P2pCommInfo>& recv,
-              MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // we will need to communicate the size of the send buffer
-    // to the receiving process so that they can allocate buffer.
-    // we also need to communicate the pack entitySet in sequence
-    // to the receiving processes so that they can properly unpack
-    // the buffer.
-    // normall, we need to send 3 messages: 1) the size of the total
-    // packed buffer to send to a particular process, 2) the size
-    // of the sequence to send, 3) the sequence itself. In order to
-    // save message start-up time, we combine 1) and 2) messages
-    // together into one message since they are both integer type.
-    vector<int> pack_size(send.size(),0) ;
-    vector<int> seq_size(send.size(),0) ;
-    vector<bool> pack_interval(send.size(),false) ;
-    vector<sequence> pack_seq(send.size()) ;
-    // compute the pack size first
-    for(size_t i=0;i<send.size();++i) {
-      entitySet packed ;
-      pack_size[i] = src->pack_size(send[i].local_dom,packed) ;
-
-      // compute the packing sequence in global numbering
-      // and also the way to send the sequence (in intervals
-      // or direct elements), and the sequence send size.
-      
-      // NOTE, we cannot use send[i].global_dom
-      // as the pack sequence because if in deed
-      // the src uses local numbering, then the
-      // global numbering converted to a sequence
-      // is not guaranteed to match the exact order
-      // of the pack function, we therefore need
-      // to map the sequence from the local numbering
-      // directly
-      // (error) pack_seq[i] = sequence(send[i].global_dom) ;
-      sequence& ps = pack_seq[i] ;
-      if(src_pack) {
-        for(entitySet::const_iterator ei=packed.begin();
-            ei!=packed.end();++ei)
-          ps += (*src_pack)[*ei] ;
-      } else {
-        ps = sequence(packed) ;
-      }
-      int interval_size = pack_seq[i].num_intervals() ;
-      int elem_size = pack_seq[i].size() ;
-      if(2*interval_size < elem_size) {
-        pack_interval[i] = true ;
-        seq_size[i] = 2*interval_size + 1 ;
-      } else {
-        pack_interval[i] = false ;
-        seq_size[i] = elem_size + 1 ;
-      }
-    }
-    // now send the total pack size and seq size first
-    vector<int> recv_msg_size(recv.size()*2, 0) ;
-
-    vector<MPI_Request> requests(recv.size()) ;
-    // first post recv requests to avoid deadlock
-    int req = 0 ;
-    // this index is used to optimize in the case of sending/receiving
-    // messages to itself, we instead would just do a local copy
-    int self_msg_buffer_idx = -1 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the buffer index
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(&recv_msg_size[i*2], 2, MPI_INT,
-                  recv[i].proc, recv[i].proc, comm, &requests[req++]) ;
-      }
-    }
-    // then post send requests
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // just do a copy
-        recv_msg_size[2*self_msg_buffer_idx] = pack_size[i] ;
-        // this is another optimization, we do not need to
-        // communicate the packing sequence for myself.
-        // by setting the sequence size to be 0
-        recv_msg_size[2*self_msg_buffer_idx+1] = 0 ;
-      } else {
-        int tmp[2] ;
-        // first one is the total pack size (for the data)
-        tmp[0] = pack_size[i] ;
-        // second one is the pack sequence size
-        tmp[1] = seq_size[i] ;
-        MPI_Send(tmp, 2, MPI_INT, send[i].proc, rank, comm) ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then we actually need to communicate the packing
-    // sequence to all the receiving processes
-
-    // allocate recv buffer first
-    int total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i+1] ;
-    int* unpack_seq_recv_buffer = new int[total_recv_size] ;
-    int** unpack_seq_recv_buffer_ptr = new int*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_seq_recv_buffer_ptr[0] = unpack_seq_recv_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_seq_recv_buffer_ptr[i] = recv_msg_size[2*(i-1)+1] +
-          unpack_seq_recv_buffer_ptr[i-1] ;
-    }
-
-    // post recv requests (to receive the sequence)
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc != rank)
-        MPI_Irecv(unpack_seq_recv_buffer_ptr[i],
-                  recv_msg_size[2*i+1],
-                  MPI_INT, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-    }
-    // send the sequence
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc != rank) {
-        // allocate a send buffer
-        vector<int> buf(seq_size[i]) ;
-        // pack it
-        if(pack_interval[i]) {
-          // pack intervals
-          buf[0] = 1 ;    // indicate following contents are intervals
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(size_t k=0;k<seq.num_intervals();++k) {
-            buf[count++] = seq[k].first ;
-            buf[count++] = seq[k].second ;
-          }
-        } else {
-          buf[0] = 0 ;          // we are packing elements
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(sequence::const_iterator si=seq.begin();
-              si!=seq.end();++si,++count)
-            buf[count] = *si ;
-        }
-        // send the buffer
-        MPI_Send(&buf[0], seq_size[i], MPI_INT, send[i].proc, rank, comm) ;
-      } else {
-        // remember the buffer index for later retrieval
-        self_msg_buffer_idx = i ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the sequence buffer
-    vector<sequence> unpack_seq(recv.size()) ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // just copy
-        unpack_seq[i] = pack_seq[self_msg_buffer_idx] ;
-      } else {
-        // extract the first integer to see if the
-        // packed stuff is interval or element
-        sequence& seq = unpack_seq[i] ;
-        int* p = unpack_seq_recv_buffer_ptr[i] ;
-        int size = recv_msg_size[2*i+1] - 1 ;
-        if(*p == 1) {
-          // extract intervals
-          ++p ;
-          for(int k=0;k<size;k+=2) {
-            int b = *p ; ++p ;
-            int e = *p ; ++p ;
-            seq += interval(b,e) ;
-          }
-        } else {
-          // extract elements
-          ++p ;
-          for(int k=0;k<size;++k,++p)
-            seq += *p ;
-        }
-      }
-    }
-    // release all unnecessary buffers
-    vector<int>().swap(seq_size) ;
-    vector<bool>().swap(pack_interval) ;
-    vector<sequence>().swap(pack_seq) ;
-    delete[] unpack_seq_recv_buffer_ptr ;
-    delete[] unpack_seq_recv_buffer ;
-
-    // remap the unpack sequence to the dst numbering
-    if(dst_unpack != 0) {
-      for(size_t i=0;i<recv.size();++i)
-        unpack_seq[i] = remap_sequence(unpack_seq[i], *dst_unpack) ;
-    }
-
-    // now it is time for us to send/recv the data
-
-    // allocate a recv buffer first
-    total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i] ;
-    unsigned char* unpack_buffer = new unsigned char[total_recv_size] ;
-    unsigned char** unpack_buffer_ptr = new unsigned char*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_buffer_ptr[0] = unpack_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_buffer_ptr[i] = recv_msg_size[2*(i-1)] +
-          unpack_buffer_ptr[i-1] ;
-    }
-    // post recv requests
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the idx
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(unpack_buffer_ptr[i], recv_msg_size[2*i],
-                  MPI_PACKED, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-      }
-    }
-    // actually pack and send
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // no need to communicate, directly pack
-        // into the receiving buffer
-        unsigned char* pack_buffer =
-          unpack_buffer_ptr[self_msg_buffer_idx] ;
-        int position = 0 ;
-        if(src_pack != 0)
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom, *src_pack) ;
-        else
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom) ;
-      } else {
-        // first allocate the pack buffer
-        unsigned char* pack_buffer = new unsigned char[pack_size[i]] ;
-        // the do the pack
-        int position = 0 ;
-        if(src_pack != 0)
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom, *src_pack) ;
-        else
-          src->pack(pack_buffer, position,
-                    pack_size[i], send[i].local_dom) ;
-        // send
-        MPI_Send(pack_buffer, pack_size[i],
-                 MPI_PACKED, send[i].proc, rank, comm) ;
-        delete[] pack_buffer ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // first compute the union of all unpack sequence
-    entitySet unpack_domain ;
-    for(size_t i=0;i<unpack_seq.size();++i) {
-      unpack_domain += entitySet(unpack_seq[i]) ;
-    }
-    dst->guarantee_domain(unpack_domain) ;
-
-    // then unpack the receiving buffer
-    for(size_t i=0;i<recv.size();++i) {
-      int position = 0 ;
-      int unpack_buffer_size = recv_msg_size[2*i] ;
-      if(dst_unpack != 0)
-        dst->unpack(unpack_buffer_ptr[i], position,
-                    unpack_buffer_size, unpack_seq[i], *dst_unpack) ;
-      else
-        dst->unpack(unpack_buffer_ptr[i], position,
-                    unpack_buffer_size, unpack_seq[i]) ;
-    }
-    // release recv buffer and finishing up
-    delete[] unpack_buffer_ptr ;
-    delete[] unpack_buffer ;
-
-    return unpack_domain ;
-    // end of function fill_store2
-  }
-
-
-  entitySet
-  expand_store2(storeRepP src,
-               const Map* src_pack, const dMap* src_unpack,
-               storeRepP dst,
-               const dMap* dst_unpack,
-               const entitySet& request,
-               const std::vector<entitySet>& src_ptn, MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // first we'll need to generate a send/recv structure
-    vector<P2pCommInfo> send, recv ;
-    get_p2p_comm(src_ptn, request,
-                 src_unpack, dst_unpack, comm, send, recv) ;
-
-    return
-      fill_store2(src, src_pack, dst, dst_unpack, send, recv, comm) ;
-  }
-
-  // this version fills a vector of dstS from corresponding srcS
-  vector<entitySet>
-  fill_store2(std::vector<storeRepP>& src, const Map* src_pack,
-              std::vector<storeRepP>& dst, const dMap* dst_unpack,
-              const std::vector<P2pCommInfo>& send,
-              const std::vector<P2pCommInfo>& recv, MPI_Comm comm) {
-    FATAL(src.size() != dst.size()) ;
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // we will need to communicate the size of the send buffer
-    // to the receiving process so that they can allocate buffer.
-    // we also need to communicate the pack entitySet in sequence
-    // to the receiving processes so that they can properly unpack
-    // the buffer.
-    // normall, we need to send 3 messages: 1) the size of the total
-    // packed buffer to send to a particular process, 2) the size
-    // of the sequence to send, 3) the sequence itself. In order to
-    // save message start-up time, we combine 1) and 2) messages
-    // together into one message since they are both integer type.
-    vector<int> pack_size(send.size(),0) ;
-    vector<int> seq_size(send.size()*src.size(), 0) ;
-    vector<bool> pack_interval(send.size()*src.size(), false) ;
-    vector<entitySet> packed_dom(send.size()*src.size()) ;
-    vector<sequence> pack_seq(send.size()*src.size()) ;
-    vector<int> pack_seq_size(send.size(), 0) ;
-    // compute the pack size first
-    size_t ik = 0 ;
-    for(size_t i=0;i<send.size();++i) {
-      for(size_t k=0;k<src.size();++k,++ik) {
-        entitySet& packed = packed_dom[ik] ;
-        pack_size[i] += src[k]->pack_size(send[i].local_dom,packed) ;
-
-        // compute the packing sequence in global numbering
-        // and also the way to send the sequence (in intervals
-        // or direct elements), and the sequence send size.
-        
-        // NOTE, we cannot use send[i].global_dom
-        // as the pack sequence because if in deed
-        // the src uses local numbering, then the
-        // global numbering converted to a sequence
-        // is not guaranteed to match the exact order
-        // of the pack function, we therefore need
-        // to map the sequence from the local numbering
-        // directly
-        // (error) pack_seq[i] = sequence(send[i].global_dom) ;
-        sequence& ps = pack_seq[ik] ;
-        if(src_pack) {
-          for(entitySet::const_iterator ei=packed.begin();
-              ei!=packed.end();++ei)
-            ps += (*src_pack)[*ei] ;
-        } else {
-          ps = sequence(packed) ;
-        }
-        int interval_size = ps.num_intervals() ;
-        int elem_size = ps.size() ;
-        if(2*interval_size < elem_size) {
-          pack_interval[ik] = true ;
-          seq_size[ik] = 2*interval_size + 1 ;
-          pack_seq_size[i] += seq_size[ik] ;
-        } else {
-          pack_interval[ik] = false ;
-          seq_size[ik] = elem_size + 1 ;
-          pack_seq_size[i] += seq_size[ik] ;
-        }
-      }
-    }
-    // now send the total pack size and seq size first
-    int recv_msg_len = 1+dst.size() ;
-    vector<int> recv_msg_size(recv.size()*recv_msg_len, 0) ;
-
-    vector<MPI_Request> requests(recv.size()) ;
-    // first post recv requests to avoid deadlock
-    int req = 0 ;
-    // this index is used to optimize in the case of sending/receiving
-    // messages to itself, we instead would just do a local copy
-    int self_msg_buffer_idx = -1 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the buffer index
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(&recv_msg_size[i*recv_msg_len], recv_msg_len, MPI_INT,
-                  recv[i].proc, recv[i].proc, comm, &requests[req++]) ;
-      }
-    }
-    // then post send requests
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // just do a copy
-        recv_msg_size[self_msg_buffer_idx*recv_msg_len] = pack_size[i] ;
-        // this is another optimization, we do not need to
-        // communicate the packing sequence for myself.
-        // by setting the sequence size to be 0
-        for(size_t k=0;k<dst.size();++k)
-          recv_msg_size[self_msg_buffer_idx*recv_msg_len+k+1] = 0 ;
-      } else {
-        vector<int> tmp(recv_msg_len) ;
-        // first one is the total pack size (for the data)
-        tmp[0] = pack_size[i] ;
-        // followings are the pack sequence size
-        for(size_t k=0;k<dst.size();++k)
-          tmp[k+1] = seq_size[i*src.size()+k] ;
-        MPI_Send(&tmp[0], recv_msg_len, MPI_INT, send[i].proc, rank, comm) ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then we actually need to communicate the packing
-    // sequence to all the receiving processes
-
-    // allocate recv buffer first
-    int total_recv_size = 0 ;
-    vector<int> recv_seq_size(recv.size(), 0) ;
-    for(size_t i=0;i<recv.size();++i) {
-      for(size_t j=0;j<dst.size();++j) {
-        recv_seq_size[i] += recv_msg_size[i*recv_msg_len+1+j] ;
-      }
-      total_recv_size += recv_seq_size[i] ;
-    }
-    int* unpack_seq_recv_buffer = new int[total_recv_size] ;
-    int** unpack_seq_recv_buffer_ptr = new int*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_seq_recv_buffer_ptr[0] = unpack_seq_recv_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_seq_recv_buffer_ptr[i] = recv_seq_size[i-1] +
-          unpack_seq_recv_buffer_ptr[i-1] ;
-    }
-
-    // post recv requests (to receive the sequence)
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc != rank)
-        MPI_Irecv(unpack_seq_recv_buffer_ptr[i],
-                  recv_seq_size[i],
-                  MPI_INT, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-    }
-    // send the sequence
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc != rank) {
-        // allocate a send buffer
-        vector<int> buf(pack_seq_size[i]) ;
-        // pack it
-        size_t buf_idx = 0 ;
-        for(size_t k=0;k<src.size();++k) {
-          ik = i*src.size() + k ;
-          if(pack_interval[ik]) {
-            // pack intervals
-            buf[buf_idx++] = 1 ;// indicate following contents are intervals
-            const sequence& seq = pack_seq[ik] ;
-            for(size_t j=0;j<seq.num_intervals();++j) {
-              buf[buf_idx++] = seq[j].first ;
-              buf[buf_idx++] = seq[j].second ;
-            }
-          } else {
-            buf[buf_idx++] = 0 ;          // we are packing elements
-            const sequence& seq = pack_seq[ik] ;
-            for(sequence::const_iterator si=seq.begin();
-                si!=seq.end();++si)
-              buf[buf_idx++] = *si ;
-          }
-        }
-        // send the buffer
-        MPI_Send(&buf[0], pack_seq_size[i],
-                 MPI_INT, send[i].proc, rank, comm) ;
-      } else {
-        // remember the buffer index for later retrieval
-        self_msg_buffer_idx = i ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the sequence buffer
-    vector<sequence> unpack_seq(recv.size() * dst.size()) ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // just copy
-        for(size_t k=0;k<dst.size();++k) {
-          unpack_seq[i*dst.size()+k]
-            = pack_seq[self_msg_buffer_idx*src.size()+k] ;
-        }
-      } else {
-        // extract the first integer to see if the
-        // packed stuff is interval or element
-        int* p = unpack_seq_recv_buffer_ptr[i] ;
-        for(size_t k=0;k<dst.size();++k) {
-          sequence& seq = unpack_seq[i*dst.size()+k] ;
-          int size = recv_msg_size[i*recv_msg_len+1+k] - 1 ;
-          if(*p == 1) {
-            // extract intervals
-            ++p ;
-            for(int j=0;j<size;j+=2) {
-              int b = *p ; ++p ;
-              int e = *p ; ++p ;
-              seq += interval(b,e) ;
-            }
-          } else {
-            // extract elements
-            ++p ;
-            for(int j=0;j<size;++j,++p)
-              seq += *p ;
-          }
-        }
-      }
-    }
-    // release all unnecessary buffers
-    vector<int>().swap(seq_size) ;
-    vector<bool>().swap(pack_interval) ;
-    vector<sequence>().swap(pack_seq) ;
-    vector<int>().swap(pack_seq_size) ;
-    delete[] unpack_seq_recv_buffer_ptr ;
-    delete[] unpack_seq_recv_buffer ;
-
-    // remap the unpack sequence to the dst numbering
-    if(dst_unpack != 0) {
-      for(size_t i=0;i<recv.size();++i)
-        for(size_t k=0;k<dst.size();++k) {
-          sequence& seq = unpack_seq[i*dst.size()+k] ;
-          seq = remap_sequence(seq, *dst_unpack) ;
-        }
-    }
-
-    // now it is time for us to send/recv the data
-
-    // allocate a recv buffer first
-    total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[i*recv_msg_len] ;
-    unsigned char* unpack_buffer = new unsigned char[total_recv_size] ;
-    unsigned char** unpack_buffer_ptr = new unsigned char*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_buffer_ptr[0] = unpack_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_buffer_ptr[i] = recv_msg_size[(i-1)*recv_msg_len] +
-          unpack_buffer_ptr[i-1] ;
-    }
-    // post recv requests
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the idx
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(unpack_buffer_ptr[i], recv_msg_size[i*recv_msg_len],
-                  MPI_PACKED, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-      }
-    }
-    // actually pack and send
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // no need to communicate, directly pack
-        // into the receiving buffer
-        unsigned char* pack_buffer =
-          unpack_buffer_ptr[self_msg_buffer_idx] ;
-        int position = 0 ;
-        if(src_pack != 0) {
-          for(size_t k=0;k<src.size();++k)
-            src[k]->pack(pack_buffer, position, pack_size[i],
-                         packed_dom[i*src.size()+k], *src_pack) ;
-        } else {
-          for(size_t k=0;k<src.size();++k)
-            src[k]->pack(pack_buffer, position,
-                         pack_size[i], packed_dom[i*src.size()+k]) ;
-        }
-      } else {
-        // first allocate the pack buffer
-        unsigned char* pack_buffer = new unsigned char[pack_size[i]] ;
-        // the do the pack
-        int position = 0 ;
-        if(src_pack != 0) {
-          for(size_t k=0;k<src.size();++k)
-            src[k]->pack(pack_buffer, position, pack_size[i],
-                         packed_dom[i*src.size()+k], *src_pack) ;
-        } else {
-          for(size_t k=0;k<src.size();++k)
-            src[k]->pack(pack_buffer, position,
-                         pack_size[i], packed_dom[i*src.size()+k]) ;
-        }
-        // send
-        MPI_Send(pack_buffer, pack_size[i],
-                 MPI_PACKED, send[i].proc, rank, comm) ;
-        delete[] pack_buffer ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // first compute the union of all unpack sequence
-    vector<entitySet> unpack_domain(dst.size()) ;
-    for(size_t i=0;i<dst.size();++i) {
-      for(size_t k=0;k<recv.size();++k)
-        unpack_domain[i] += entitySet(unpack_seq[k*dst.size()+i]) ;
-      dst[i]->guarantee_domain(unpack_domain[i]) ;
-    }
-
-    // then unpack the receiving buffer
-    for(size_t i=0;i<recv.size();++i) {
-      int position = 0 ;
-      int unpack_buffer_size = recv_msg_size[i*recv_msg_len] ;
-      if(dst_unpack != 0) {
-        for(size_t k=0;k<dst.size();++k)
-          dst[k]->unpack(unpack_buffer_ptr[i], position,
-                         unpack_buffer_size, unpack_seq[i*dst.size()+k],
-                         *dst_unpack) ;
-      } else {
-        for(size_t k=0;k<dst.size();++k)
-          dst[k]->unpack(unpack_buffer_ptr[i], position,
-                         unpack_buffer_size, unpack_seq[i*dst.size()+k]) ;
-      }
-    }
-    // release recv buffer and finishing up
-    delete[] unpack_buffer_ptr ;
-    delete[] unpack_buffer ;
-
-    return unpack_domain ;
-    // end of function fill_store2 (vector version)
-  }
-  
-  std::vector<entitySet>
-  expand_store2(std::vector<storeRepP>& src,
-                // src also needs unpack because the "request"
-                // is made in the global numbering scheme and
-                // the src needs to understand that in its
-                // own local number
-                const Map* src_pack, const dMap* src_unpack,
-                std::vector<storeRepP>& dst,
-                // dst does not need pack (obviously because it
-                // just receive data)
-                const dMap* dst_unpack,
-                const entitySet& request,
-                const std::vector<entitySet>& src_ptn, MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // first we'll need to generate a send/recv structure
-    vector<P2pCommInfo> send, recv ;
-    get_p2p_comm(src_ptn, request,
-                 src_unpack, dst_unpack, comm, send, recv) ;
-
-    return
-      fill_store2(src, src_pack, dst, dst_unpack, send, recv, comm) ;
-  }
-  
-  entitySet
-  fill_store_omd(storeRepP src, const Map* src_pack,
-                 storeRepP dst, const dMap* dst_unpack,
-                 const std::vector<P2pCommInfo>& send,
-                 const std::vector<P2pCommInfo>& recv,
-                 MPI_Comm comm) {
-    int rank ;
-    MPI_Comm_rank(comm, &rank) ;
-    // we will need to communicate the size of the send buffer
-    // to the receiving process so that they can allocate buffer.
-    // we also need to communicate the pack entitySet in sequence
-    // to the receiving processes so that they can properly unpack
-    // the buffer.
-    // normall, we need to send 3 messages: 1) the size of the total
-    // packed buffer to send to a particular process, 2) the size
-    // of the sequence to send, 3) the sequence itself. In order to
-    // save message start-up time, we combine 1) and 2) messages
-    // together into one message since they are both integer type.
-    vector<int> pack_size(send.size(),0) ;
-    vector<int> seq_size(send.size(),0) ;
-    vector<bool> pack_interval(send.size(),false) ;
-    vector<sequence> pack_seq(send.size()) ;
-    // compute the pack size first
-    for(size_t i=0;i<send.size();++i) {
-      entitySet packed ;
-      pack_size[i] = src->pack_size(send[i].local_dom,packed) ;
-
-      // compute the packing sequence in global numbering
-      // and also the way to send the sequence (in intervals
-      // or direct elements), and the sequence send size.
-      
-      // NOTE, we cannot use send[i].global_dom
-      // as the pack sequence because if in deed
-      // the src uses local numbering, then the
-      // global numbering converted to a sequence
-      // is not guaranteed to match the exact order
-      // of the pack function, we therefore need
-      // to map the sequence from the local numbering
-      // directly
-      // (error) pack_seq[i] = sequence(send[i].global_dom) ;
-      sequence& ps = pack_seq[i] ;
-      if(src_pack) {
-        for(entitySet::const_iterator ei=packed.begin();
-            ei!=packed.end();++ei)
-          ps += (*src_pack)[*ei] ;
-      } else {
-        ps = sequence(packed) ;
-      }
-      int interval_size = pack_seq[i].num_intervals() ;
-      int elem_size = pack_seq[i].size() ;
-      if(2*interval_size < elem_size) {
-        pack_interval[i] = true ;
-        seq_size[i] = 2*interval_size + 1 ;
-      } else {
-        pack_interval[i] = false ;
-        seq_size[i] = elem_size + 1 ;
-      }
-    }
-    // now send the total pack size and seq size first
-    vector<int> recv_msg_size(recv.size()*2, 0) ;
-
-    vector<MPI_Request> requests(recv.size()) ;
-    // first post recv requests to avoid deadlock
-    int req = 0 ;
-    // this index is used to optimize in the case of sending/receiving
-    // messages to itself, we instead would just do a local copy
-    int self_msg_buffer_idx = -1 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the buffer index
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(&recv_msg_size[i*2], 2, MPI_INT,
-                  recv[i].proc, recv[i].proc, comm, &requests[req++]) ;
-      }
-    }
-    // then post send requests
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // just do a copy
-        recv_msg_size[2*self_msg_buffer_idx] = pack_size[i] ;
-        // this is another optimization, we do not need to
-        // communicate the packing sequence for myself.
-        // by setting the sequence size to be 0
-        recv_msg_size[2*self_msg_buffer_idx+1] = 0 ;
-      } else {
-        int tmp[2] ;
-        // first one is the total pack size (for the data)
-        tmp[0] = pack_size[i] ;
-        // second one is the pack sequence size
-        tmp[1] = seq_size[i] ;
-        MPI_Send(tmp, 2, MPI_INT, send[i].proc, rank, comm) ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then we actually need to communicate the packing
-    // sequence to all the receiving processes
-
-    // allocate recv buffer first
-    int total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i+1] ;
-    int* unpack_seq_recv_buffer = new int[total_recv_size] ;
-    int** unpack_seq_recv_buffer_ptr = new int*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_seq_recv_buffer_ptr[0] = unpack_seq_recv_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_seq_recv_buffer_ptr[i] = recv_msg_size[2*(i-1)+1] +
-          unpack_seq_recv_buffer_ptr[i-1] ;
-    }
-
-    // post recv requests (to receive the sequence)
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc != rank)
-        MPI_Irecv(unpack_seq_recv_buffer_ptr[i],
-                  recv_msg_size[2*i+1],
-                  MPI_INT, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-    }
-    // send the sequence
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc != rank) {
-        // allocate a send buffer
-        vector<int> buf(seq_size[i]) ;
-        // pack it
-        if(pack_interval[i]) {
-          // pack intervals
-          buf[0] = 1 ;    // indicate following contents are intervals
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(size_t k=0;k<seq.num_intervals();++k) {
-            buf[count++] = seq[k].first ;
-            buf[count++] = seq[k].second ;
-          }
-        } else {
-          buf[0] = 0 ;          // we are packing elements
-          int count = 1 ;
-          const sequence& seq = pack_seq[i] ;
-          for(sequence::const_iterator si=seq.begin();
-              si!=seq.end();++si,++count)
-            buf[count] = *si ;
-        }
-        // send the buffer
-        MPI_Send(&buf[0], seq_size[i], MPI_INT, send[i].proc, rank, comm) ;
-      } else {
-        // remember the buffer index for later retrieval
-        self_msg_buffer_idx = i ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // then unpack the sequence buffer
-    vector<sequence> unpack_seq(recv.size()) ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // just copy
-        unpack_seq[i] = pack_seq[self_msg_buffer_idx] ;
-      } else {
-        // extract the first integer to see if the
-        // packed stuff is interval or element
-        sequence& seq = unpack_seq[i] ;
-        int* p = unpack_seq_recv_buffer_ptr[i] ;
-        int size = recv_msg_size[2*i+1] - 1 ;
-        if(*p == 1) {
-          // extract intervals
-          ++p ;
-          for(int k=0;k<size;k+=2) {
-            int b = *p ; ++p ;
-            int e = *p ; ++p ;
-            seq += interval(b,e) ;
-          }
-        } else {
-          // extract elements
-          ++p ;
-          for(int k=0;k<size;++k,++p)
-            seq += *p ;
-        }
-      }
-    }
-    // release all unnecessary buffers
-    vector<int>().swap(seq_size) ;
-    vector<bool>().swap(pack_interval) ;
-    vector<sequence>().swap(pack_seq) ;
-    delete[] unpack_seq_recv_buffer_ptr ;
-    delete[] unpack_seq_recv_buffer ;
-
-    // remap the unpack sequence to the dst numbering
-    if(dst_unpack != 0) {
-      for(size_t i=0;i<recv.size();++i)
-        unpack_seq[i] = remap_sequence(unpack_seq[i], *dst_unpack) ;
-    }
-
-    // now it is time for us to send/recv the data
-
-    // allocate a recv buffer first
-    total_recv_size = 0 ;
-    for(size_t i=0;i<recv.size();++i)
-      total_recv_size += recv_msg_size[2*i] ;
-    unsigned char* unpack_buffer = new unsigned char[total_recv_size] ;
-    unsigned char** unpack_buffer_ptr = new unsigned char*[recv.size()] ;
-
-    if(!recv.empty()) {
-      unpack_buffer_ptr[0] = unpack_buffer ;
-      for(size_t i=1;i<recv.size();++i)
-        unpack_buffer_ptr[i] = recv_msg_size[2*(i-1)] +
-          unpack_buffer_ptr[i-1] ;
-    }
-    // post recv requests
-    req = 0 ;
-    for(size_t i=0;i<recv.size();++i) {
-      if(recv[i].proc == rank) {
-        // remember the idx
-        self_msg_buffer_idx = i ;
-      } else {
-        MPI_Irecv(unpack_buffer_ptr[i], recv_msg_size[2*i],
-                  MPI_PACKED, recv[i].proc, recv[i].proc,
-                  comm, &requests[req++]) ;
-      }
-    }
-    // actually pack and send
-    for(size_t i=0;i<send.size();++i) {
-      if(send[i].proc == rank) {
-        // no need to communicate, directly pack
-        // into the receiving buffer
-        unsigned char* pack_buffer =
-          unpack_buffer_ptr[self_msg_buffer_idx] ;
-        int position = 0 ;
-        src->pack(pack_buffer, position,
-                  pack_size[i], send[i].local_dom) ;
-      } else {
-        // first allocate the pack buffer
-        unsigned char* pack_buffer = new unsigned char[pack_size[i]] ;
-        // the do the pack
-        int position = 0 ;
-        src->pack(pack_buffer, position,
-                  pack_size[i], send[i].local_dom) ;
-        // send
-        MPI_Send(pack_buffer, pack_size[i],
-                 MPI_PACKED, send[i].proc, rank, comm) ;
-        delete[] pack_buffer ;
-      }
-    }
-    // wait all Irecv to finish
-    if(req > 0)
-      MPI_Waitall(req, &requests[0], MPI_STATUSES_IGNORE) ;
-
-    // first compute the union of all unpack sequence
-    entitySet unpack_domain ;
-    for(size_t i=0;i<unpack_seq.size();++i) {
-      unpack_domain += entitySet(unpack_seq[i]) ;
-    }
-    dst->guarantee_domain(unpack_domain) ;
-
-    // then unpack the receiving buffer
-    for(size_t i=0;i<recv.size();++i) {
-      int position = 0 ;
-      int unpack_buffer_size = recv_msg_size[2*i] ;
-      dst->unpack(unpack_buffer_ptr[i], position,
-                  unpack_buffer_size, unpack_seq[i]) ;
-    }
-    // release recv buffer and finishing up
-    delete[] unpack_buffer_ptr ;
-    delete[] unpack_buffer ;
-
-    return unpack_domain ;
-    // end of function fill_store_omd
-  }
-#endif  
   // ... the end of file ...
 } 

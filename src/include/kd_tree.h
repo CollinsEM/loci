@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -24,11 +24,8 @@
 #include <algorithm>
 #include <Config/conf.h>
 #include <Loci_types.h>
-#ifdef NO_CMATH
-#include <math.h>
-#else
 #include <cmath>
-#endif
+
 #include <limits>
 
 #include <mpi.h>

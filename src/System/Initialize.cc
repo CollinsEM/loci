@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -63,7 +63,6 @@ void dummyFunctionDependencies(int i) {
 #endif
 
 #include <rule.h>
-#include <keyspace.h>
 #include <mod_db.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
@@ -133,6 +132,18 @@ namespace Loci {
   MPI_Op MPI_MFADD_MIN ;
   MPI_Op MPI_MFADD_MAX ;
 
+  MPI_Datatype MPI_VFAD ;
+  MPI_Op MPI_VFAD_SUM ;
+  MPI_Op MPI_VFAD_PROD ;
+  MPI_Op MPI_VFAD_MIN ;
+  MPI_Op MPI_VFAD_MAX ;
+
+  MPI_Datatype MPI_VECTF8 ;
+  MPI_Op MPI_VECTF8_SUM ;
+  MPI_Op MPI_VECTF8_PROD ;
+  MPI_Op MPI_VECTF8_MIN ;
+  MPI_Op MPI_VECTF8_MAX ;
+  
   MPI_Info PHDF5_MPI_Info ;
   
   int MPI_processes = 1;
@@ -389,6 +400,42 @@ namespace Loci {
       rinout[i] = min(rinout[i],rin[i]) ;
   }
 
+  void sumVFAD(VFAD *rin, VFAD *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodVFAD(VFAD *rin, VFAD *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxVFAD(VFAD *rin, VFAD *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minVFAD(VFAD *rin, VFAD *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
+  void sumVECTF8(vtype<float,8> *rin, vtype<float,8> *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodVECTF8(vtype<float,8> *rin, vtype<float,8> *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxVECTF8(vtype<float,8> *rin, vtype<float,8> *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+     for(int k=0;k<8;++k)
+       rinout[i].data[k] = max(rinout[i].data[k],rin[i].data[k]) ;
+  }
+  void minVECTF8(vtype<float,8> *rin, vtype<float,8> *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      for(int k=0;k<8;++k)
+        rinout[i].data[k] = min(rinout[i].data[k],rin[i].data[k]) ;
+  }
+
   MPI_Errhandler Loci_MPI_err_handler ;
   
 
@@ -487,6 +534,27 @@ namespace Loci {
       MPI_Op_create((MPI_User_function *)minMFADd,1,&MPI_MFADD_MIN) ;
 
     }
+
+    {
+      MPI_Type_vector(sizeof(VFAD),1,1,MPI_BYTE,&MPI_VFAD) ;
+      MPI_Type_commit(&MPI_VFAD) ;
+
+      MPI_Op_create((MPI_User_function *)sumVFAD,1,&MPI_VFAD_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodVFAD,1,&MPI_VFAD_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxVFAD,1,&MPI_VFAD_MAX) ;
+      MPI_Op_create((MPI_User_function *)minVFAD,1,&MPI_VFAD_MIN) ;
+
+    }
+    {
+      MPI_Type_vector(sizeof(vtype<float,8>),1,1,MPI_BYTE,&MPI_VECTF8) ;
+      MPI_Type_commit(&MPI_VECTF8) ;
+
+      MPI_Op_create((MPI_User_function *)sumVECTF8,1,&MPI_VECTF8_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodVECTF8,1,&MPI_VECTF8_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxVECTF8,1,&MPI_VECTF8_MAX) ;
+      MPI_Op_create((MPI_User_function *)minVECTF8,1,&MPI_VECTF8_MIN) ;
+
+    }
 #endif
     
     time_duration_to_collect_data = MPI_Wtick()*20;
@@ -566,13 +634,6 @@ namespace Loci {
         global_rule_list.copy_rule_list(register_rule_list) ;
         register_rule_list.clear() ;
       }
-#ifdef DYNAMICSCHEDULING
-      // do the same to get all the defined keyspace
-      if(!register_key_space_list.empty()) {
-        global_key_space_list.copy_space_list(register_key_space_list) ;
-        register_key_space_list.clear() ;
-      }
-#endif
       bool debug_setup = false ;
       int i = 1 ;
       int k = 1 ; // copy cursor for removing processed arguments from argv
@@ -904,7 +965,9 @@ namespace Loci {
     
 
 #ifdef USE_CUDA_RT
-      setCudaDevice() ;
+  // Moved to rename_gpu_containers so it is only performed when
+  // gpu rules are present in the schedulNAe
+      //      setCudaDevice() ;
 #endif
     
       // Find number of mpi processes per host
@@ -986,10 +1049,6 @@ namespace Loci {
     register_rule_list.clear() ;
     global_rule_list.clear() ;
     rule::rdb_cleanup() ;
-#ifdef DYNAMICSHCEDULING
-    register_key_space_list.clear() ;
-    global_key_space_list.clear() ;
-#endif
     //    storeAllocateData.clear() ;
     //    GPUstoreAllocateData.clear() ;
     exec_current_fact_db = 0 ;

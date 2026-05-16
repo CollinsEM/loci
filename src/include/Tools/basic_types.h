@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015-2019, Mississippi State University
+//# Copyright 2015-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -26,24 +26,41 @@
 #endif
 #include <Config/conf.h>
 
+#include <iostream>
+#include <sstream>
+#include <string>
+
+
 #ifndef NO_AUTODIFF
 #include <Tools/autodiff.h>
 #endif
 
 #include <Tools/debug.h>
+#include <Tools/parse.h>
+#include <Tools/expr.h>
+#include <Tools/unit_type.h>
+#include <Tools/gpu_attr.h>
 
 namespace Loci {
 
 #ifdef USE_AUTODIFF
+
+#if !defined(AUTODIFF2ND) && !defined(USEVFAD) && !defined(MULTIFAD)
+#define USEFAD
+#endif
 #ifdef AUTODIFF2ND
   typedef Loci::FAD2d real_t ;
-#else
+#endif
 #ifdef MULTIFAD
   typedef Loci::MFADd real_t ;
-#else
+#endif
+#ifdef USEVFAD
+  typedef Loci::VFAD real_t ;
+#endif
+#ifdef USEFAD
   typedef Loci::FADd real_t ;
 #endif
-#endif
+
 #else
   // No autodiff
   typedef double real_t ;
@@ -57,24 +74,24 @@ namespace Loci {
   template<typename T, typename Op >
   struct ArrayUnaryC{
     const Op op1;
-    ArrayUnaryC(const Op& a): op1(a) {}
-    T operator[](const size_t i) const { return -op1[i] ;  }
+    GPU_DECL ArrayUnaryC(const Op& a): op1(a) {}
+    GPU_DECL T operator[](const size_t i) const { return -op1[i] ;  }
   } ;
   // base version of unary operator
   template <typename T, typename Op>
   struct ArrayUnaryB{
     const Op &op1;
-    ArrayUnaryB(const Op& a): op1(a) {}
-    T operator[](const size_t i) const { return -op1[i] ;  }
+    GPU_DECL ArrayUnaryB(const Op& a): op1(a) {}
+    GPU_DECL T operator[](const size_t i) const { return -op1[i] ;  }
   } ;
 
   template <typename T, typename Op>
   struct ArrayOperator {
     const Op op ;
-    ArrayOperator(const Op &t):op(t) {}
-    T operator[](const size_t i) const { return op[i]; }
-    const Op &data() const { return op; }
-    ArrayOperator<T,ArrayUnaryC<T,Op> > operator-() const { return ArrayOperator<T,ArrayUnaryC<T,Op> >(op) ; }
+    GPU_DECL ArrayOperator(const Op &t):op(t) {}
+    GPU_DECL T operator[](const size_t i) const { return op[i]; }
+    GPU_DECL const Op &data() const { return op; }
+    GPU_DECL ArrayOperator<T,ArrayUnaryC<T,Op> > operator-() const { return ArrayOperator<T,ArrayUnaryC<T,Op> >(op) ; }
   } ;
 
   //---------------------------------------------------------------------------
@@ -85,16 +102,16 @@ namespace Loci {
   struct ArrayAdd{
     const Op1& op1;
     const Op2& op2;
-    ArrayAdd(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
+    GPU_DECL ArrayAdd(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
   } ;
   // Case where left argument of add is a temporary (thus we need to copy)
   template<typename T, typename Op1 , typename Op2>
   struct ArrayAddL{
     const Op1 op1;
     const Op2& op2;
-    ArrayAddL(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
+    GPU_DECL ArrayAddL(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
   } ;
 
   // case where right argument of add is a temporary (thus we need to copy)
@@ -102,16 +119,16 @@ namespace Loci {
   struct ArrayAddR{
     const Op1 &op1;
     const Op2 op2;
-    ArrayAddR(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
+    GPU_DECL ArrayAddR(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
   } ;
 
   template<typename T, typename Op1 , typename Op2>
   struct ArrayAddLR{
     const Op1 op1;
     const Op2 op2;
-    ArrayAddLR(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
+    GPU_DECL ArrayAddLR(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] + op2[i] ;  }
   } ;
   
   // Case where left side is a double constant
@@ -119,36 +136,36 @@ namespace Loci {
   struct ArrayAddLC {
     const double op1;
     const Op2& op2;
-    ArrayAddLC(const double& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1 + op2[i] ;  }
+    GPU_DECL ArrayAddLC(const double& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1 + op2[i] ;  }
   } ;
   // Case where right side is a double constant
   template<typename T, typename Op1 >
   struct ArrayAddRC{
     const Op1 &op1;
     const double op2;
-    ArrayAddRC(const Op1& a, const double &b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] + op2 ;  }
+    GPU_DECL ArrayAddRC(const Op1& a, const double &b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] + op2 ;  }
   } ;
 
   // General operators for packaged expressions
   // function template for the + operator
   template<typename T, typename R1, typename R2>
-  inline ArrayOperator<T, ArrayAddLR<T, R1, R2> >
+  inline GPU_DECL ArrayOperator<T, ArrayAddLR<T, R1, R2> >
   operator+ (const ArrayOperator<T, R1>& a, const ArrayOperator<T, R2>& b){
     return ArrayOperator<T, ArrayAddLR<T, R1, R2> >(ArrayAddLR<T, R1, R2 >(a.data(), b.data()));
   }
   // case where expression is added to a constant on the right
   // function template for the + operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArrayAddRC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArrayAddRC<T, R1> >
   operator+ (const ArrayOperator<T, R1>& a, const double& b){
     return ArrayOperator<T, ArrayAddRC<T, R1> >(ArrayAddRC<T, R1 >(a.data(), b));
   }
   // case where constant on the left is added to an expression
   // function template for the + operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArrayAddLC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArrayAddLC<T, R1> >
   operator+ (const double &a, const ArrayOperator<T, R1>& b){
     return ArrayOperator<T, ArrayAddLC<T, R1> >(ArrayAddLC<T, R1 >(a, b.data()));
   }
@@ -162,16 +179,16 @@ namespace Loci {
   struct ArraySub{
     const Op1& op1;
     const Op2& op2;
-    ArraySub(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
+    GPU_DECL ArraySub(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
   } ;
   // Case where left argument of add is a temporary (thus we need to copy)
   template<typename T, typename Op1 , typename Op2>
   struct ArraySubL{
     const Op1 op1;
     const Op2& op2;
-    ArraySubL(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
+    GPU_DECL ArraySubL(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
   } ;
 
   // case where right argument of add is a temporary (thus we need to copy)
@@ -179,52 +196,52 @@ namespace Loci {
   struct ArraySubR{
     const Op1 &op1;
     const Op2 op2;
-    ArraySubR(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
+    GPU_DECL ArraySubR(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
   } ;
 
   template<typename T, typename Op1 , typename Op2>
   struct ArraySubLR{
     const Op1 op1;
     const Op2 op2;
-    ArraySubLR(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
+    GPU_DECL ArraySubLR(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] - op2[i] ;  }
   } ;
   // Case where left side is a double constant
   template<typename T, typename Op2>
   struct ArraySubLC {
     const double op1;
     const Op2& op2;
-    ArraySubLC(const double& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1 - op2[i] ;  }
+    GPU_DECL ArraySubLC(const double& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1 - op2[i] ;  }
   } ;
   // Case where right side is a double constant
   template<typename T, typename Op1 >
   struct ArraySubRC{
     const Op1 &op1;
     const double op2;
-    ArraySubRC(const Op1& a, const double &b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] - op2 ;  }
+    GPU_DECL ArraySubRC(const Op1& a, const double &b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] - op2 ;  }
   } ;
 
   // General operators for packaged expressions
   // function template for the - operator
   template<typename T, typename R1, typename R2>
-  inline ArrayOperator<T, ArraySubLR<T, R1, R2> >
+  inline GPU_DECL ArrayOperator<T, ArraySubLR<T, R1, R2> >
   operator- (const ArrayOperator<T, R1>& a, const ArrayOperator<T, R2>& b){
     return ArrayOperator<T, ArraySubLR<T, R1, R2> >(ArraySubLR<T, R1, R2 >(a.data(), b.data()));
   }
   // case where expression is added to a constant on the right
   // function template for the - operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArraySubRC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArraySubRC<T, R1> >
   operator- (const ArrayOperator<T, R1>& a, const double& b){
     return ArrayOperator<T, ArraySubRC<T, R1> >(ArraySubRC<T, R1 >(a.data(), b));
   }
   // case where constant on the left is added to an expression
   // function template for the - operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArraySubLC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArraySubLC<T, R1> >
   operator- (const double &a, const ArrayOperator<T, R1>& b){
     return ArrayOperator<T, ArraySubLC<T, R1> >(ArraySubLC<T, R1 >(a, b.data()));
   }
@@ -237,16 +254,16 @@ namespace Loci {
   struct ArrayMul{
     const Op1& op1;
     const Op2& op2;
-    ArrayMul(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
+    GPU_DECL ArrayMul(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
   } ;
   // Case where left argument of add is a temporary (thus we need to copy)
   template<typename T, typename Op1 , typename Op2>
   struct ArrayMulL{
     const Op1 op1;
     const Op2& op2;
-    ArrayMulL(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
+    GPU_DECL ArrayMulL(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
   } ;
 
   // case where right argument of add is a temporary (thus we need to copy)
@@ -254,8 +271,8 @@ namespace Loci {
   struct ArrayMulR{
     const Op1 &op1;
     const Op2 op2;
-    ArrayMulR(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
+    GPU_DECL ArrayMulR(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
   } ;
 
   // case where right argument of add is a temporary (thus we need to copy)
@@ -263,8 +280,8 @@ namespace Loci {
   struct ArrayMulLR{
     const Op1 op1;
     const Op2 op2;
-    ArrayMulLR(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
+    GPU_DECL ArrayMulLR(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] * op2[i] ;  }
   } ;
 
   // Case where left side is a double constant
@@ -272,36 +289,36 @@ namespace Loci {
   struct ArrayMulLC {
     const double op1;
     const Op2& op2;
-    ArrayMulLC(const double& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1 * op2[i] ;  }
+    GPU_DECL ArrayMulLC(const double& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1 * op2[i] ;  }
   } ;
   // Case where right side is a double constant
   template<typename T, typename Op1 >
   struct ArrayMulRC{
     const Op1 &op1;
     const double op2;
-    ArrayMulRC(const Op1& a, const double &b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] * op2 ;  }
+    GPU_DECL ArrayMulRC(const Op1& a, const double &b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] * op2 ;  }
   } ;
 
   // General operators for packaged expressions
   // function template for the * operator
   template<typename T, typename R1, typename R2>
-  inline ArrayOperator<T, ArrayMulLR<T, R1, R2> >
+  inline GPU_DECL ArrayOperator<T, ArrayMulLR<T, R1, R2> >
   operator* (const ArrayOperator<T, R1>& a, const ArrayOperator<T, R2>& b){
     return ArrayOperator<T, ArrayMulLR<T, R1, R2> >(ArrayMulLR<T, R1, R2 >(a.data(), b.data()));
   }
   // case where expression is added to a constant on the right
   // function template for the * operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArrayMulRC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArrayMulRC<T, R1> >
   operator* (const ArrayOperator<T, R1>& a, const double& b){
     return ArrayOperator<T, ArrayMulRC<T, R1> >(ArrayMulRC<T, R1 >(a.data(), b));
   }
   // case where constant on the left is added to an expression
   // function template for the * operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArrayMulLC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArrayMulLC<T, R1> >
   operator* (const double &a, const ArrayOperator<T, R1>& b){
     return ArrayOperator<T, ArrayMulLC<T, R1> >(ArrayMulLC<T, R1 >(a, b.data()));
   }
@@ -314,16 +331,16 @@ namespace Loci {
   struct ArrayDiv{
     const Op1& op1;
     const Op2& op2;
-    ArrayDiv(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
+    GPU_DECL ArrayDiv(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
   } ;
   // Case where left argument of add is a temporary (thus we need to copy)
   template<typename T, typename Op1 , typename Op2>
   struct ArrayDivL{
     const Op1 op1;
     const Op2& op2;
-    ArrayDivL(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
+    GPU_DECL ArrayDivL(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
   } ;
 
   // case where right argument of add is a temporary (thus we need to copy)
@@ -331,15 +348,15 @@ namespace Loci {
   struct ArrayDivR{
     const Op1 &op1;
     const Op2 op2;
-    ArrayDivR(const Op1& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
+    GPU_DECL ArrayDivR(const Op1& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
   } ;
   template<typename T, typename Op1 , typename Op2>
   struct ArrayDivLR{
     const Op1 op1;
     const Op2 op2;
-    ArrayDivLR(const Op1& a, const Op2& b): op1(a), op2(b) {}
-    T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
+    GPU_DECL ArrayDivLR(const Op1& a, const Op2& b): op1(a), op2(b) {}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] / op2[i] ;  }
   } ;
 
   // Case where left side is a double constant
@@ -347,36 +364,36 @@ namespace Loci {
   struct ArrayDivLC {
     const double op1;
     const Op2& op2;
-    ArrayDivLC(const double& a, const Op2& b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1 / op2[i] ;  }
+    GPU_DECL ArrayDivLC(const double& a, const Op2& b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1 / op2[i] ;  }
   } ;
   // Case where right side is a double constant
   template<typename T, typename Op1 >
   struct ArrayDivRC{
     const Op1 &op1;
     const double op2;
-    ArrayDivRC(const Op1& a, const double &b): op1(a), op2(b){}
-    T operator[](const size_t i) const { return op1[i] / op2 ;  }
+    GPU_DECL ArrayDivRC(const Op1& a, const double &b): op1(a), op2(b){}
+    GPU_DECL T operator[](const size_t i) const { return op1[i] / op2 ;  }
   } ;
 
   // General operators for packaged expressions
   // function template for the / operator
   template<typename T, typename R1, typename R2>
-  inline ArrayOperator<T, ArrayDivLR<T, R1, R2> >
+  inline GPU_DECL ArrayOperator<T, ArrayDivLR<T, R1, R2> >
   operator/ (const ArrayOperator<T, R1>& a, const ArrayOperator<T, R2>& b){
     return ArrayOperator<T, ArrayDivLR<T, R1, R2> >(ArrayDivLR<T, R1, R2 >(a.data(), b.data()));
   }
   // case where expression is added to a constant on the right
   // function template for the / operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArrayDivRC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArrayDivRC<T, R1> >
   operator/ (const ArrayOperator<T, R1>& a, const double& b){
     return ArrayOperator<T, ArrayDivRC<T, R1> >(ArrayDivRC<T, R1 >(a.data(), b));
   }
   // case where constant on the left is added to an expression
   // function template for the / operator
   template<typename T, typename R1>
-  inline ArrayOperator<T, ArrayDivLC<T, R1> >
+  inline GPU_DECL ArrayOperator<T, ArrayDivLC<T, R1> >
   operator/ (const double &a, const ArrayOperator<T, R1>& b){
     return ArrayOperator<T, ArrayDivLC<T, R1> >(ArrayDivLC<T, R1 >(a, b.data()));
   }
@@ -1095,75 +1112,73 @@ namespace Loci {
   public:
     typedef T * iterator ;
     typedef const T * const_iterator ;
-    
-    //    Array() {} ;
-    //    Array(const Array<T,n> &v)
-    //    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
-    //    Array<T,n> &operator=(const Array<T,n> &v)
-    //    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
 
-    Array<T,n> &operator=(const T &v) {
+    // default constructor
+    Array() = default ;
+    // constructor to create an array initialized to a single value
+    explicit Array(const T &v) { for(size_t i=0;i<n;++i) x[i] = v ; }
+    GPU_DECL Array<T,n> &operator=(const T &v) {
       for(size_t i=0;i<n;++i)
 	x[i] = v ;
       return *this ;
     }
     // Expression template interface for unary operator
-    ArrayOperator<T,ArrayUnaryB<T,Array<T,n> > > operator-() {
+    GPU_DECL ArrayOperator<T,ArrayUnaryB<T,Array<T,n> > > operator-() {
       return ArrayOperator<T,ArrayUnaryB<T,Array<T,n> > >(ArrayUnaryB<T,Array<T,n> >(*this)) ;
     }
 						       
     // Expression template loop hoisting for assignment operators
-    template <typename R> Array<T,n> &operator=(const ArrayOperator<T,R> &v) {
+    template <typename R> GPU_DECL Array<T,n> &operator=(const ArrayOperator<T,R> &v) {
       for(size_t i=0;i<n;++i) {
 	x[i] = v[i];
       }
       return *this ;
     }
-    template <typename R> Array<T,n> &operator+=(const ArrayOperator<T,R> &v) {
+    template <typename R> GPU_DECL Array<T,n> &operator+=(const ArrayOperator<T,R> &v) {
       for(size_t i=0;i<n;++i)
 	x[i] += v[i];
       return *this ;
     }
-    template <typename R> Array<T,n> &operator-=(const ArrayOperator<T,R> &v) {
+    template <typename R> GPU_DECL Array<T,n> &operator-=(const ArrayOperator<T,R> &v) {
       for(size_t i=0;i<n;++i)
 	x[i] -= v[i];
       return *this ;
     }
-    template <typename R> Array<T,n> &operator*=(const ArrayOperator<T,R> &v) {
+    template <typename R> GPU_DECL Array<T,n> &operator*=(const ArrayOperator<T,R> &v) {
       for(size_t i=0;i<n;++i)
 	x[i] *= v[i];
       return *this ;
     }
-    template <typename R> Array<T,n> &operator/=(const ArrayOperator<T,R> &v) {
+    template <typename R> GPU_DECL Array<T,n> &operator/=(const ArrayOperator<T,R> &v) {
       for(size_t i=0;i<n;++i)
 	x[i] /= v[i];
       return *this ;
     }
 
-    Array<T,n> &operator +=(const Array<T,n> &v)
+    GPU_DECL Array<T,n> &operator +=(const Array<T,n> &v)
     { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
-    Array<T,n> &operator -=(const Array<T,n> &v)
+    GPU_DECL Array<T,n> &operator -=(const Array<T,n> &v)
     { for(size_t i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
-    Array<T,n> &operator *=(const Array<T,n> &v)
+    GPU_DECL Array<T,n> &operator *=(const Array<T,n> &v)
     { for(size_t i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
-    Array<T,n> &operator /=(const Array<T,n> &v)
+    GPU_DECL Array<T,n> &operator /=(const Array<T,n> &v)
     { for(size_t i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
 
-    T &operator[](size_t indx) { return x[indx]; }
-    const T &operator[](size_t indx) const { return x[indx] ; }
-    T &operator[](int indx) { return x[indx]; }
-    const T &operator[](int indx) const { return x[indx] ; }
-    T &operator[](unsigned char indx) { return x[indx]; }
-    const T &operator[](unsigned char indx) const { return x[indx] ; }
-    T &operator[](unsigned int indx) { return x[indx]; }
-    const T &operator[](unsigned int indx) const { return x[indx] ; }
+    GPU_DECL T &operator[](size_t indx) { return x[indx]; }
+    GPU_DECL const T &operator[](size_t indx) const { return x[indx] ; }
+    GPU_DECL T &operator[](int indx) { return x[indx]; }
+    GPU_DECL const T &operator[](int indx) const { return x[indx] ; }
+    GPU_DECL T &operator[](unsigned char indx) { return x[indx]; }
+    GPU_DECL const T &operator[](unsigned char indx) const { return x[indx] ; }
+    GPU_DECL T &operator[](unsigned int indx) { return x[indx]; }
+    GPU_DECL const T &operator[](unsigned int indx) const { return x[indx] ; }
 
-    iterator begin() { return &x[0] ; }
-    iterator end() { return begin()+n ; }
-    const_iterator begin() const { return &x[0] ; }
-    const_iterator end() const { return begin()+n ; }
+    GPU_DECL iterator begin() { return &x[0] ; }
+    GPU_DECL iterator end() { return begin()+n ; }
+    GPU_DECL const_iterator begin() const { return &x[0] ; }
+    GPU_DECL const_iterator end() const { return begin()+n ; }
 
-    size_t size() const  { return n ; }
+    GPU_DECL size_t size() const  { return n ; }
     
   } ;
 
@@ -1177,32 +1192,32 @@ namespace Loci {
   // Summation
   // Operator for the sum of two arrays
   template<typename T, size_t n>
-  inline ArrayOperator<T, ArrayAdd<T,Array<T,n>,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T, ArrayAdd<T,Array<T,n>,Array<T,n> > >
   operator+ (const Array<T, n>& a, const Array<T, n>& b){
     return ArrayOperator<T, ArrayAdd<T, Array<T,n>, Array<T,n> > >(ArrayAdd<T, Array<T,n>, Array<T,n> >(a, b));
   }
   // Adding an expression to an array
   template<typename T, size_t n, typename R>
-  inline ArrayOperator<T,ArrayAddL<T,R,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayAddL<T,R,Array<T,n> > >
   operator+(const R &a, const Array<T,n> &b) {
     return ArrayOperator<T,ArrayAddL<T,R,Array<T,n> > >(ArrayAddL<T,R,Array<T,n> >(a.data(),b)) ;
   }
   // Adding an array to an expression
   template<typename T, size_t n,typename R >
-  inline ArrayOperator<T,ArrayAddR<T,Array<T,n>,R > >
+  inline GPU_DECL ArrayOperator<T,ArrayAddR<T,Array<T,n>,R > >
   operator+(const Array<T,n> &a, const  R &b) {
     return ArrayOperator<T,ArrayAddR<T,Array<T,n>,R > >(ArrayAddR<T,Array<T,n>,R>(a,b.data())) ;
   }
   // Operator for constant + array
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArrayAddLC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayAddLC<T,Array<T,n> > >
   operator+(const double a, const Array<T,n> &b) {
     return ArrayOperator<T,ArrayAddLC<T,Array<T,n> > >(ArrayAddLC<T,Array<T,n> >(a,b)) ;
   }
 
   // Operator for array + constant
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArrayAddRC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayAddRC<T,Array<T,n> > >
   operator+(const Array<T,n> &a, const  double b) {
     return ArrayOperator<T,ArrayAddRC<T,Array<T,n> > >(ArrayAddRC<T,Array<T,n> >(a,b)) ;
   }
@@ -1210,32 +1225,32 @@ namespace Loci {
   // Subtraction
   // Operator for the sum of two arrays
   template<typename T, size_t n>
-  inline ArrayOperator<T, ArraySub<T,Array<T,n>,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T, ArraySub<T,Array<T,n>,Array<T,n> > >
   operator- (const Array<T, n>& a, const Array<T, n>& b){
     return ArrayOperator<T, ArraySub<T, Array<T,n>, Array<T,n> > >(ArraySub<T, Array<T,n>, Array<T,n> >(a, b));
   }
   // Subing an expression to an array
   template<typename T, size_t n, typename R>
-  inline ArrayOperator<T,ArraySubL<T,R,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArraySubL<T,R,Array<T,n> > >
   operator-(const R &a, const Array<T,n> &b) {
     return ArrayOperator<T,ArraySubL<T,R,Array<T,n> > >(ArraySubL<T,R,Array<T,n> >(a.data(),b)) ;
   }
   // Subing an array to an expression
   template<typename T, size_t n,typename R >
-  inline ArrayOperator<T,ArraySubR<T,Array<T,n>,R > >
+  inline GPU_DECL ArrayOperator<T,ArraySubR<T,Array<T,n>,R > >
   operator-(const Array<T,n> &a, const  R &b) {
     return ArrayOperator<T,ArraySubR<T,Array<T,n>,R > >(ArraySubR<T,Array<T,n>,R>(a,b.data())) ;
   }
   // Operator for constant - array
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArraySubLC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArraySubLC<T,Array<T,n> > >
   operator-(const double a, const Array<T,n> &b) {
     return ArrayOperator<T,ArraySubLC<T,Array<T,n> > >(ArraySubLC<T,Array<T,n> >(a,b)) ;
   }
 
   // Operator for array - constant
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArraySubRC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArraySubRC<T,Array<T,n> > >
   operator-(const Array<T,n> &a, const  double b) {
     return ArrayOperator<T,ArraySubRC<T,Array<T,n> > >(ArraySubRC<T,Array<T,n> >(a,b)) ;
   }
@@ -1243,32 +1258,32 @@ namespace Loci {
   // Multiplication
   // Operator for the sum of two arrays
   template<typename T, size_t n>
-  inline ArrayOperator<T, ArrayMul<T,Array<T,n>,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T, ArrayMul<T,Array<T,n>,Array<T,n> > >
   operator* (const Array<T, n>& a, const Array<T, n>& b){
     return ArrayOperator<T, ArrayMul<T, Array<T,n>, Array<T,n> > >(ArrayMul<T, Array<T,n>, Array<T,n> >(a, b));
   }
   // Muling an expression to an array
   template<typename T, size_t n, typename R>
-  inline ArrayOperator<T,ArrayMulL<T,R,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayMulL<T,R,Array<T,n> > >
   operator*(const R &a, const Array<T,n> &b) {
     return ArrayOperator<T,ArrayMulL<T,R,Array<T,n> > >(ArrayMulL<T,R,Array<T,n> >(a.data(),b)) ;
   }
   // Muling an array to an expression
   template<typename T, size_t n,typename R >
-  inline ArrayOperator<T,ArrayMulR<T,Array<T,n>,R > >
+  inline GPU_DECL ArrayOperator<T,ArrayMulR<T,Array<T,n>,R > >
   operator*(const Array<T,n> &a, const  R &b) {
     return ArrayOperator<T,ArrayMulR<T,Array<T,n>,R > >(ArrayMulR<T,Array<T,n>,R>(a,b.data())) ;
   }
   // Operator for constant * array
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArrayMulLC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayMulLC<T,Array<T,n> > >
   operator*(const double a, const Array<T,n> &b) {
     return ArrayOperator<T,ArrayMulLC<T,Array<T,n> > >(ArrayMulLC<T,Array<T,n> >(a,b)) ;
   }
 
   // Operator for array * constant
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArrayMulRC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayMulRC<T,Array<T,n> > >
   operator*(const Array<T,n> &a, const  double b) {
     return ArrayOperator<T,ArrayMulRC<T,Array<T,n> > >(ArrayMulRC<T,Array<T,n> >(a,b)) ;
   }
@@ -1277,32 +1292,32 @@ namespace Loci {
   // Division
   // Operator for the sum of two arrays
   template<typename T, size_t n>
-  inline ArrayOperator<T, ArrayDiv<T,Array<T,n>,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T, ArrayDiv<T,Array<T,n>,Array<T,n> > >
   operator/ (const Array<T, n>& a, const Array<T, n>& b){
     return ArrayOperator<T, ArrayDiv<T, Array<T,n>, Array<T,n> > >(ArrayDiv<T, Array<T,n>, Array<T,n> >(a, b));
   }
   // Diving an expression to an array
   template<typename T, size_t n, typename R>
-  inline ArrayOperator<T,ArrayDivL<T,R,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayDivL<T,R,Array<T,n> > >
   operator/(const R &a, const Array<T,n> &b) {
     return ArrayOperator<T,ArrayDivL<T,R,Array<T,n> > >(ArrayDivL<T,R,Array<T,n> >(a.data(),b)) ;
   }
   // Diving an array to an expression
   template<typename T, size_t n,typename R >
-  inline ArrayOperator<T,ArrayDivR<T,Array<T,n>,R > >
+  inline GPU_DECL ArrayOperator<T,ArrayDivR<T,Array<T,n>,R > >
   operator/(const Array<T,n> &a, const  R &b) {
     return ArrayOperator<T,ArrayDivR<T,Array<T,n>,R > >(ArrayDivR<T,Array<T,n>,R>(a,b.data())) ;
   }
   // Operator for constant / array
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArrayDivLC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayDivLC<T,Array<T,n> > >
   operator/(const double a, const Array<T,n> &b) {
     return ArrayOperator<T,ArrayDivLC<T,Array<T,n> > >(ArrayDivLC<T,Array<T,n> >(a,b)) ;
   }
 
   // Operator for array / constant
   template<typename T, size_t n >
-  inline ArrayOperator<T,ArrayDivRC<T,Array<T,n> > >
+  inline GPU_DECL ArrayOperator<T,ArrayDivRC<T,Array<T,n> > >
   operator/(const Array<T,n> &a, const  double b) {
     return ArrayOperator<T,ArrayDivRC<T,Array<T,n> > >(ArrayDivRC<T,Array<T,n> >(a,b)) ;
   }
@@ -1546,10 +1561,10 @@ namespace Loci {
   template <class T> 
   struct vector3d {
     T x,y,z ;
-    vector3d() {} 
-    vector3d(const vector3d &v): x(v.x),y(v.y),z(v.z) {}
-    vector3d(T xx,T yy, T zz) : x(xx),y(yy),z(zz) {}
-    template <class S> vector3d(const vector3d<S> &v): x(v.x),y(v.y),z(v.z) {}
+    vector3d() = default ;
+    GPU_DECL vector3d(const vector3d &v): x(v.x),y(v.y),z(v.z) {}
+    GPU_DECL vector3d(T xx,T yy, T zz) : x(xx),y(yy),z(zz) {}
+    template <class S> GPU_DECL vector3d(const vector3d<S> &v): x(v.x),y(v.y),z(v.z) {}
     //    template <class S> vector3d(const Array<S,3> &a) {x=a[0];y=a[1];z=a[2];}
     // template <class S> operator Array<S,3>() {
     //   Array<S,3> a ;
@@ -1558,8 +1573,8 @@ namespace Loci {
     //   a[2] = z ;
     //   return a;
     // }
-    T &operator[](size_t i) { FATAL(i>2) ; return (&x)[i] ; }
-    const T &operator[](size_t i) const { FATAL(i>2) ; return (&x)[i] ; }
+    GPU_DECL T &operator[](size_t i) { FATAL(i>2) ; return (&x)[i] ; }
+    GPU_DECL const T &operator[](size_t i) const { FATAL(i>2) ; return (&x)[i] ; }
   } ;
   
   template <class T> inline std::ostream & operator<<(std::ostream &s, const vector3d<T> &v)
@@ -1574,91 +1589,91 @@ namespace Loci {
     return s ;
   }
 
-  template <class T> inline T dot(const vector3d<T> &v1, const vector3d<T> &v2) {
+  template <class T> inline GPU_DECL T dot(const vector3d<T> &v1, const vector3d<T> &v2) {
     return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z ;
   }
 
-  template <class T> inline T norm(const vector3d<T> &v) {
+  template <class T> inline GPU_DECL T norm(const vector3d<T> &v) {
     return sqrt(v.x*v.x+v.y*v.y+v.z*v.z) ;
   }
 
-  template<class T> inline vector3d<T> cross(const vector3d<T> &v1, const vector3d<T> &v2) {
+  template<class T> inline GPU_DECL vector3d<T> cross(const vector3d<T> &v1, const vector3d<T> &v2) {
     return vector3d<T>(v1.y*v2.z-v1.z*v2.y,
                        v1.z*v2.x-v1.x*v2.z,
                        v1.x*v2.y-v1.y*v2.x) ;
   }
 
-  template<class T> inline vector3d<T> cross(const vector3d<T> &v1, const T ra2[]) {
+  template<class T> inline GPU_DECL vector3d<T> cross(const vector3d<T> &v1, const T ra2[]) {
     return vector3d<T>(v1.y*ra2[2]-v1.z*ra2[1],
                        v1.z*ra2[0]-v1.x*ra2[2],
                        v1.x*ra2[1]-v1.y*ra2[0]) ;
   }
-  template<class T> inline vector3d<T> cross(const T ra1[], const vector3d<T> &v2) {
+  template<class T> inline GPU_DECL vector3d<T> cross(const T ra1[], const vector3d<T> &v2) {
     return vector3d<T>(ra1[1]*v2.z-ra1[2]*v2.y,
                        ra1[2]*v2.x-ra1[0]*v2.z,
                        ra1[0]*v2.y-ra1[1]*v2.x) ;
   }
 
-  template<class T,class S> inline vector3d<T> &operator*=(vector3d<T> &target, S val) {
+  template<class T,class S> inline GPU_DECL vector3d<T> &operator*=(vector3d<T> &target, S val) {
     target.x *= val ;
     target.y *= val ;
     target.z *= val ;
     return target ;
   }
 
-  template<class T,class S> inline vector3d<T> &operator/=(vector3d<T> &target, S val) {
+  template<class T,class S> inline GPU_DECL vector3d<T> &operator/=(vector3d<T> &target, S val) {
     target.x /= val ;
     target.y /= val ;
     target.z /= val ;
     return target ;
   }
   
-  template<class T> inline vector3d<T> operator+=(vector3d<T> &target, const vector3d<T> &val) {
+  template<class T> inline GPU_DECL vector3d<T> operator+=(vector3d<T> &target, const vector3d<T> &val) {
     target.x += val.x ;
     target.y += val.y ;
     target.z += val.z ;
     return target ;
   }
 
-  template<class T> inline vector3d<T> operator-=(vector3d<T> &target, const vector3d<T> &val) {
+  template<class T> inline GPU_DECL vector3d<T> operator-=(vector3d<T> &target, const vector3d<T> &val) {
     target.x -= val.x ;
     target.y -= val.y ;
     target.z -= val.z ;
     return target ;
   }
 
-  template<class T> inline vector3d<T> operator+(const vector3d<T> &v1, const vector3d<T> &v2) {
+  template<class T> inline GPU_DECL vector3d<T> operator+(const vector3d<T> &v1, const vector3d<T> &v2) {
     return vector3d<T>(v1.x+v2.x,v1.y+v2.y,v1.z+v2.z) ;
   }
 
-  template<class T> inline vector3d<T> operator-(const vector3d<T> &v1, const vector3d<T> &v2) {
+  template<class T> inline GPU_DECL vector3d<T> operator-(const vector3d<T> &v1, const vector3d<T> &v2) {
     return vector3d<T>(v1.x-v2.x,v1.y-v2.y,v1.z-v2.z) ;
   }
 
-  template<class T,class S> inline vector3d<T> operator*(const vector3d<T> &v1, S r2) {
+  template<class T,class S> inline GPU_DECL vector3d<T> operator*(const vector3d<T> &v1, S r2) {
     return vector3d<T>(v1.x*r2,v1.y*r2,v1.z*r2) ;
   }
-  template<class T,class S> inline vector3d<T> operator*(S r1, const vector3d<T> &v2) {
+  template<class T,class S> inline GPU_DECL vector3d<T> operator*(S r1, const vector3d<T> &v2) {
     return vector3d<T>(v2.x*r1,v2.y*r1,v2.z*r1) ;
   }
 
-  template<class T,class S> inline vector3d<T> operator/(const vector3d<T> &v1, S r2) {
+  template<class T,class S> inline GPU_DECL vector3d<T> operator/(const vector3d<T> &v1, S r2) {
     return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
   }
 
   template<class T>  struct tensor3d : public vector3d<vector3d< T > > {
-    tensor3d() {}
-    tensor3d(vector3d<T> xx,vector3d<T> yy, vector3d<T> zz)
+    tensor3d() = default ;
+    GPU_DECL tensor3d(vector3d<T> xx,vector3d<T> yy, vector3d<T> zz)
       : vector3d<vector3d< T> > (xx,yy,zz) {}
-    tensor3d(const tensor3d &v) : vector3d<vector3d< T> >(v) {}
+    GPU_DECL tensor3d(const tensor3d &v) : vector3d<vector3d< T> >(v) {}
   } ;
 
-  template<class T> inline vector3d<T> dot(const tensor3d<T> &t,
+  template<class T> inline GPU_DECL vector3d<T> dot(const tensor3d<T> &t,
                                            const vector3d<T> &v) {
     return vector3d<T>(dot(t.x,v),dot(t.y,v),dot(t.z,v)) ;
   }
 
-  template<class T> inline tensor3d<T> product(const tensor3d<T> &t1,
+  template<class T> inline GPU_DECL tensor3d<T> product(const tensor3d<T> &t1,
                                                const tensor3d<T> &t2) {
     tensor3d<T> temp ;
     temp.x.x = t1.x.x*t2.x.x+t1.x.y*t2.y.x+t1.x.z*t2.z.x ;
@@ -1676,8 +1691,8 @@ namespace Loci {
     return temp ;
   }
 
-  inline vector3d<float> realToFloat(vector3d<double> v) { return vector3d<float>(float(v.x),float(v.y),float(v.z)); }
-  inline vector3d<double> realToDouble(vector3d<double> v) { return v ; }
+  inline GPU_DECL vector3d<float> realToFloat(vector3d<double> v) { return vector3d<float>(float(v.x),float(v.y),float(v.z)); }
+  inline GPU_DECL vector3d<double> realToDouble(vector3d<double> v) { return v ; }
 
 
 #ifndef NO_AUTODIFF
@@ -1689,16 +1704,19 @@ namespace Loci {
 
   inline vector3d<float> realToFloat(vector3d<FAD2d> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
   inline vector3d<double> realToDouble(vector3d<FAD2d> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
+
+  inline vector3d<float> realToFloat(vector3d<VFAD> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<VFAD> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
 #endif
   
   //---------------------vector2d------------------//
   template <class T> 
   struct vector2d {
     T x,y ;
-    vector2d() {} 
-    vector2d(T xx,T yy) : x(xx),y(yy) {}
-    vector2d(const vector2d &v) {x=v.x;y=v.y;}
-    T &operator[](int i) {
+    vector2d() = default ; 
+    GPU_DECL vector2d(T xx,T yy) : x(xx),y(yy) {}
+    GPU_DECL vector2d(const vector2d &v) {x=v.x;y=v.y;}
+    GPU_DECL T &operator[](int i) {
       FATAL(i>1) ;
       switch(i) {
       case 0:
@@ -1709,7 +1727,7 @@ namespace Loci {
         return y ;
       }
     }
-    const T &operator[](int i) const {
+    GPU_DECL const T &operator[](int i) const {
       FATAL(i>1) ;
       switch(i) {
       case 0:
@@ -1734,68 +1752,68 @@ namespace Loci {
     return s ;
   }
 
-  template <class T> inline T dot(const vector2d<T> &v1, const vector2d<T> &v2) {
+  template <class T> inline GPU_DECL T dot(const vector2d<T> &v1, const vector2d<T> &v2) {
     return v1.x*v2.x + v1.y*v2.y ;
   }
 
-  template <class T> inline T dot(const vector2d<T> &v1, const T ra2[]) {
+  template <class T> inline GPU_DECL T dot(const vector2d<T> &v1, const T ra2[]) {
     return v1.x*ra2[0] + v1.y*ra2[1] ;
   }
 
-  template <class T> inline T norm(const vector2d<T> &v) {
+  template <class T> inline GPU_DECL T norm(const vector2d<T> &v) {
     return sqrt(v.x*v.x+v.y*v.y) ;
   }
 
-  template<class T> inline T cross(const vector2d<T> &v1, const vector2d<T> &v2) {
+  template<class T> inline GPU_DECL T cross(const vector2d<T> &v1, const vector2d<T> &v2) {
     return v1.x*v2.y-v1.y*v2.x ;
   }
 
-  template<class T> inline T cross(const vector2d<T> &v1, const T ra2[]) {
+  template<class T> inline GPU_DECL T cross(const vector2d<T> &v1, const T ra2[]) {
     return v1.x*ra2[1]-v1.y*ra2[0] ;
   }
 
 
-  template<class T,class S> inline vector2d<T> &operator*=(vector2d<T> &target, S val) {
+  template<class T,class S> inline GPU_DECL vector2d<T> &operator*=(vector2d<T> &target, S val) {
     target.x *= val ;
     target.y *= val ;
     return target ;
   }
 
-  template<class T,class S> inline vector2d<T> &operator/=(vector2d<T> &target, S val) {
+  template<class T,class S> inline GPU_DECL vector2d<T> &operator/=(vector2d<T> &target, S val) {
     target.x /= val ;
     target.y /= val ;
     return target ;
   }
 
-  template<class T> inline vector2d<T> operator+=(vector2d<T> &target, const vector2d<T> &val) {
+  template<class T> inline GPU_DECL vector2d<T> operator+=(vector2d<T> &target, const vector2d<T> &val) {
     target.x += val.x ;
     target.y += val.y ;
     return target ;
   }
 
-  template<class T> inline vector2d<T> operator-=(vector2d<T> &target, const vector2d<T> &val) {
+  template<class T> inline GPU_DECL vector2d<T> operator-=(vector2d<T> &target, const vector2d<T> &val) {
     target.x -= val.x ;
     target.y -= val.y ;
     return target ;
   }
 
-  template<class T> inline vector2d<T> operator+(const vector2d<T> &v1, const vector2d<T> &v2) {
+  template<class T> inline GPU_DECL vector2d<T> operator+(const vector2d<T> &v1, const vector2d<T> &v2) {
     return vector2d<T>(v1.x+v2.x,v1.y+v2.y) ;
   }
 
-  template<class T> inline vector2d<T> operator-(const vector2d<T> &v1, const vector2d<T> &v2) {
+  template<class T> inline GPU_DECL vector2d<T> operator-(const vector2d<T> &v1, const vector2d<T> &v2) {
     return vector2d<T>(v1.x-v2.x,v1.y-v2.y) ;
   }
 
-  template<class T,class S> inline vector2d<T> operator*(const vector2d<T> &v1, S r2) {
+  template<class T,class S> inline GPU_DECL vector2d<T> operator*(const vector2d<T> &v1, S r2) {
     return vector2d<T>(v1.x*r2,v1.y*r2) ;
   }
 
-  template<class T,class S> inline vector2d<T> operator*(S r1, const vector2d<T> &v2) {
+  template<class T,class S> inline GPU_DECL vector2d<T> operator*(S r1, const vector2d<T> &v2) {
     return vector2d<T>(v2.x*r1,v2.y*r1) ;
   }
 
-  template<class T,class S> inline vector2d<T> operator/(const vector2d<T> &v1, S r2) {
+  template<class T,class S> inline GPU_DECL vector2d<T> operator/(const vector2d<T> &v1, S r2) {
     return vector2d<T>(v1.x/r2,v1.y/r2) ;
   }
 
@@ -1846,6 +1864,496 @@ namespace Loci {
     operator T *() { return p ; }
     operator const T *() const { return p ; }
   } ;
+
+
+  // Class for inputing parameters with units and derivatives from the
+  // vars file
+  class unitValue {
+    double val ;  // Value
+    double grad ; // First Deriviative 
+    double secondGrad ; // Second Deriviativ
+    std::vector<double> gradList ; // Remaining first derivatives in multiple deriviatve lists
+  public:
+    // Get the value as a double precision value
+    void getValue(double &value) const {
+      value = val ;
+    }
+    // Get the value as a FADd value
+    void getValue(Loci::FADd &value) const {
+      value = Loci::FADd(val,grad) ;
+    }
+    // Get the value as a FAD2d value
+    void getValue(Loci::FAD2d &value) const {
+      value = Loci::FAD2d(val,grad,secondGrad) ;
+    }
+    // Get the value as a VFAD derivative. optional batch number can be used
+    // to get different batches of derivatives
+    void getValue(Loci::VFAD &value,int batch=0) const {
+      value.data.value = val ;
+      for(size_t i=1;i<Loci::VFAD::maxN;++i)
+        value.data.grad[i] = 0 ;
+      if(batch == 0) {
+        value.data.grad[0] = grad ;
+        for(size_t i=1;i<min(Loci::VFAD::maxN,gradList.size()+1);++i)
+          value.data.grad[i] = gradList[i-1] ;
+      } else {
+        size_t offset = batch*Loci::VFAD::maxN ;
+        size_t num = min(Loci::VFAD::maxN, offset-(gradList.size()+1)) ;
+        for(size_t i=0;i<num;++i)
+          value.data.grad[i] = gradList[i+offset-1] ;
+      }
+    }      
+    explicit operator double() const { return val ; }
+    operator Loci::FADd() const
+    { Loci::FADd tmp ; getValue(tmp); return tmp; }
+    operator Loci::FAD2d() const
+    { Loci::FAD2d tmp ; getValue(tmp); return tmp; }
+    operator Loci::VFAD() const
+    { Loci::VFAD tmp ; getValue(tmp); return tmp; }
+  protected:
+    // Units information (provided by constructors of derived classes
+    std::string baseunit ;
+    std::string unitclass ; 
+  public:
+    // Set the value to a double precision constant value (e.g. derivatives are zero)
+    void setDouble(double v) {
+      val = v ;
+      grad = 0 ;
+      secondGrad = 0 ;
+      gradList = std::vector<double>() ;
+    }
+    // Default constructor initializeds to zero
+    unitValue() :val(0.0),grad(0.0),secondGrad(0.0) {}
+
+    // Get the size for data traits
+    int getSize() const { return 3+gradList.size() ; }
+    // Get state for data traits
+    void getState(double *buf, int &size) const {
+      buf[0] = val ;
+      buf[1] = grad ;
+      buf[2] = secondGrad ;
+      for(size_t i=0;i<gradList.size();++i)
+        buf[3+i] = gradList[i] ;
+      size = 3+gradList.size() ;
+    }
+    // Set the state for data traits
+    void setState(double *buf, int size) {
+      val = buf[0] ;
+      grad = buf[1] ;
+      secondGrad = buf[2] ;
+      for(int i=3;i<size;++i)
+        gradList.push_back(buf[3+i]) ;
+    }
+
+    // Print out the value with derivatives and units
+    std::ostream &print(std::ostream &s) const {
+      s << val ;
+      if(grad != 0 || secondGrad != 0 || gradList.size() !=0) {
+        if(gradList.size() == 0) {
+          s << "^" << grad ;
+          if(secondGrad != 0)
+            s << "^^" << secondGrad ;
+        } else {
+          s << "^[" << grad ;
+          for(size_t i=0; i<gradList.size();++i)
+            s << " " << gradList[i] ;
+          s << "]" ;
+        }
+      }
+      if(baseunit != "none")
+        s << baseunit ;
+      return s ;
+    }
+    // Input the value with derivatives and units suitable for parsing
+    // from vars file
+    std::istream &input(std::istream &s) {
+      Loci::UNIT_type unitval(Loci::UNIT_type::MKS,unitclass,1,baseunit) ;
+      std::string inputstring ;
+      while(s.peek() == ' ' || s.peek() == '\t')
+        s.get() ;
+      // Get the number part
+      while(std::isdigit(s.peek()) || s.peek() == '.'
+            || s.peek() == 'e' || s.peek() == 'E'
+            || s.peek()=='+' || s.peek() == '-')
+        inputstring += s.get() ;
+      while(s.peek() == ' ' || s.peek() == '\t')
+        inputstring += s.get() ;
+      if(s.peek() == '^') { // get sensitivities
+        inputstring += s.get() ;
+        if(s.peek() == '[') {
+          while(s.peek() != ']' && s.peek() != EOF && !s.eof()) 
+            inputstring += s.get() ;
+          if(s.peek() == ']')
+            inputstring += s.get() ;
+          else
+            throw Loci::exprError("Syntax", "Unterminated sensitivity list",
+                                  Loci::ERR_SYNTAX) ;
+        } else {
+          while(std::isdigit(s.peek()) || s.peek() == '.'
+                || s.peek() == 'e' || s.peek() == 'E'
+                || s.peek()=='+' || s.peek() == '-'
+                || s.peek()=='^')
+            inputstring += s.get() ;
+        }
+      }
+      while(s.peek() == ' ' || s.peek() == '\t')
+        inputstring += s.get() ;
+      // Now get units if available
+      while(s.peek() != '\n' && s.peek() != '\r' && s.peek() != EOF)
+        inputstring += s.get() ;
+
+      std::istringstream iss(inputstring) ;
+      iss >> unitval ;
+      if(unitval.is_compatible(baseunit)) {
+        unitval.get_values_in(baseunit,val,grad,secondGrad,gradList) ;
+      } else {
+        std::ostringstream oss ;
+        oss << "Expecting units compatible with " << baseunit
+            << "!" << std::endl
+            << "incompatible with input of '"<<unitval<<"'" << std::endl ;
+        throw Loci::StringError(oss.str()) ;
+      }
+      return s ;
+    }
+    // Assignment operator
+    unitValue &operator=(const unitValue &v)
+    { val = v.val ;
+      grad = v.grad ;
+      secondGrad = v.secondGrad ;
+      gradList = v.gradList ;
+      return *this ;}
+    // Assign to double precision value
+    unitValue &operator=(double v) {
+      val = v ;
+      grad = 0 ;
+      secondGrad = 0 ;
+      gradList = std::vector<double>() ;
+      return *this; }
+    // Assign to float value
+    unitValue &operator=(float v) { val = v ;
+      grad = 0 ;
+      secondGrad = 0 ;
+      gradList = std::vector<double>() ;
+      return *this; }
+    // Assign to integer value
+    unitValue &operator=(int v) { val = v ;
+      grad = 0 ;
+      secondGrad = 0 ;
+      gradList = std::vector<double>() ;
+      return *this; }
+  } ;
+
+  // Input type for nondimensional data (with derivatives)
+  class NonDimensionalValue: public unitValue {
+  public:
+    NonDimensionalValue() { unitclass="general" ; baseunit="none" ; }
+    NonDimensionalValue &operator=(double v) { setDouble(v) ; return *this; }
+    NonDimensionalValue &operator=(float v) { setDouble(v) ; return *this; }
+    NonDimensionalValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const NonDimensionalValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, NonDimensionalValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  // Input a value with Time units
+  class TimeValue: public unitValue {
+  public:
+    TimeValue() { baseunit="second" ; unitclass="time" ; }
+    TimeValue &operator=(double v) { setDouble(v) ; return *this; }
+    TimeValue &operator=(float v) { setDouble(v) ; return *this; }
+    TimeValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const TimeValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, TimeValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  // Input a value with Length units
+  class LengthValue: public unitValue {
+  public:
+    LengthValue() { baseunit="meter" ; unitclass="length" ; }
+    LengthValue &operator=(double v) { setDouble(v) ; return *this; }
+    LengthValue &operator=(float v) { setDouble(v) ; return *this; }
+    LengthValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const LengthValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, LengthValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class MassValue: public unitValue {
+  public:
+    MassValue() { baseunit="kilogram" ; unitclass="mass" ; }
+    MassValue &operator=(double v) { setDouble(v) ; return *this; }
+    MassValue &operator=(float v) { setDouble(v) ; return *this; }
+    MassValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const MassValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, MassValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class AreaValue: public unitValue {
+  public:
+    AreaValue() { baseunit="m*m" ; unitclass="area" ; }
+    AreaValue &operator=(double v) { setDouble(v) ; return *this; }
+    AreaValue &operator=(float v) { setDouble(v) ; return *this; }
+    AreaValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const AreaValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, AreaValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class DensityValue: public unitValue {
+  public:
+    DensityValue() { unitclass="density" ; baseunit="kg/m/m/m" ; }
+    DensityValue &operator=(double v) { setDouble(v) ; return *this; }
+    DensityValue &operator=(float v) { setDouble(v) ; return *this; }
+    DensityValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const DensityValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, DensityValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class EnergyValue: public unitValue {
+  public:
+    EnergyValue() { unitclass="energy" ; baseunit="J" ; }
+    EnergyValue &operator=(double v) { setDouble(v) ; return *this; }
+    EnergyValue &operator=(float v) { setDouble(v) ; return *this; }
+    EnergyValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const EnergyValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, EnergyValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class PowerValue: public unitValue {
+  public:
+    PowerValue() { unitclass="power" ; baseunit="W" ; }
+    PowerValue &operator=(double v) { setDouble(v) ; return *this; }
+    PowerValue &operator=(float v) { setDouble(v) ; return *this; }
+    PowerValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const PowerValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, PowerValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class FlowValue: public unitValue {
+  public:
+    FlowValue() { unitclass="flow" ; baseunit="kg/s" ; }
+    FlowValue &operator=(double v) { setDouble(v) ; return *this; }
+    FlowValue &operator=(float v) { setDouble(v) ; return *this; }
+    FlowValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const FlowValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, FlowValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class SpeedValue: public unitValue {
+  public:
+    SpeedValue() { unitclass="speed" ; baseunit="m/s" ; }
+    SpeedValue &operator=(double v) { setDouble(v) ; return *this; }
+    SpeedValue &operator=(float v) { setDouble(v) ; return *this; }
+    SpeedValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const SpeedValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, SpeedValue &ss) {
+    return ss.input(s) ;
+  }        
+  
+  class DynamicViscosityValue: public unitValue {
+  public:
+    DynamicViscosityValue() { unitclass="viscosityD" ; baseunit="Pa*s" ; }
+    DynamicViscosityValue &operator=(double v) { setDouble(v) ; return *this; }
+    DynamicViscosityValue &operator=(float v) { setDouble(v) ; return *this; }
+    DynamicViscosityValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const DynamicViscosityValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, DynamicViscosityValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class KinematicViscosityValue: public unitValue {
+  public:
+    KinematicViscosityValue() { unitclass="viscosityK" ; baseunit="m*m/s" ; }
+    KinematicViscosityValue &operator=(double v) { setDouble(v) ; return *this; }
+    KinematicViscosityValue &operator=(float v) { setDouble(v) ; return *this; }
+    KinematicViscosityValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const KinematicViscosityValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, KinematicViscosityValue &ss) {
+    return ss.input(s) ;
+  }        
+  class ThermalConductivityValue: public unitValue {
+  public:
+    ThermalConductivityValue() { unitclass="thermalConductivity" ; baseunit="W/m/K" ; }
+    ThermalConductivityValue &operator=(double v) { setDouble(v) ; return *this; }
+    ThermalConductivityValue &operator=(float v) { setDouble(v) ; return *this; }
+    ThermalConductivityValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const ThermalConductivityValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, ThermalConductivityValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  class VolumeValue: public unitValue {
+  public:
+    VolumeValue() { unitclass="volume" ; baseunit="m*m*m" ; }
+    VolumeValue &operator=(double v) { setDouble(v) ; return *this; }
+    VolumeValue &operator=(float v) { setDouble(v) ; return *this; }
+    VolumeValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+    
+  inline std::ostream & operator<<(std::ostream &s, const VolumeValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, VolumeValue &ss) {
+    return ss.input(s) ;
+  }        
+
+
+  class TemperatureValue: public unitValue {
+  public:
+    TemperatureValue() { baseunit="kelvin" ; unitclass="temperature" ; }
+    TemperatureValue &operator=(double v) { setDouble(v) ; return *this; }
+    TemperatureValue &operator=(float v) { setDouble(v) ; return *this; }
+    TemperatureValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+
+  inline std::ostream & operator<<(std::ostream &s, const TemperatureValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, TemperatureValue &ss) {
+    return ss.input(s) ;
+
+  }        
+
+  class PressureValue: public unitValue {
+  public:
+    PressureValue() { baseunit="pascal" ; unitclass="pressure" ; }
+    PressureValue &operator=(double v) { setDouble(v) ; return *this; }
+    PressureValue &operator=(float v) { setDouble(v) ; return *this; }
+    PressureValue &operator=(int v) { setDouble(v) ; return *this; }
+  } ;
+
+
+  inline std::ostream & operator<<(std::ostream &s, const PressureValue &ss)
+  {
+    return ss.print(s) ;
+  }
+    
+  inline std::istream &operator>>(std::istream &s, PressureValue &ss) {
+    return ss.input(s) ;
+  }        
+
+  /// Operator to set a variable to it zero value to be used inside of
+  /// templated functions that need to initialize variables for summation
+  inline GPU_DECL void setZero(double &val) { val = double(0) ; }
+  inline void setZero(long double &val) { val = (long double) 0 ; }
+  inline GPU_DECL void setZero(float &val) { val = float(0) ; }
+  inline GPU_DECL void setZero(int &val) { val = int(0) ; }
+  inline GPU_DECL void setZero(unsigned int &val) { val = (unsigned int) 0 ; }
+  inline GPU_DECL void setZero(long &val) { val = long(0) ; }
+  inline GPU_DECL void setZero(unsigned long &val) { val = (unsigned long) 0 ; }
+  inline GPU_DECL void setZero(short &val) { val = short(0) ; }
+  inline GPU_DECL void setZero(unsigned short &val) { val = (unsigned short) 0 ; }
+  inline GPU_DECL void setZero(char &val) { val = char(0) ; }
+  inline GPU_DECL void setZero(unsigned char &val) { val = (unsigned char) 0 ; }
+  inline GPU_DECL void setZero(bool &val) { val = false ; }
+  template<class T> inline GPU_DECL void setZero(vector2d<T> &val) 
+  { setZero(val.x) ; setZero(val.y) ; }
+  template<class T> inline GPU_DECL void setZero(vector3d<T> &val) 
+  { setZero(val.x) ; setZero(val.y) ; setZero(val.z) ; }
+  template<class T, size_t n> inline GPU_DECL void setZero(Array<T,n> &val) 
+  { for(size_t i=0;i<n;++i) setZero(val.x[i]) ; }
+
+#ifndef NO_AUTODIFF
+  inline void setZero(FAD2d &val)
+  { setZero(val.value) ; setZero(val.grad) ; setZero(val.grad2) ; }
+  inline void setZero(FADd &val)
+  { setZero(val.value) ; setZero(val.grad) ;  }
+  inline void setZero(VFAD &val)
+  { setZero(val.data.value) ;
+    for(size_t i=0;i<VFAD::maxN;++i)
+      setZero(val.data.grad[i]) ; }
+#endif
 }
 
 #endif
+
+
+

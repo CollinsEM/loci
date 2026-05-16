@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -56,6 +56,7 @@ other features are ignored by the converter.
 #include <iostream>
 #include <cstdlib>
 #include <string>
+#include <sys/stat.h>
 
 double extrude_dist = 0.01 ; // In 2-D grids, extrude 1 cm
 
@@ -1018,11 +1019,32 @@ int main(int ac, char *av[]) {
     cout << endl ;
   }
 
-  string filename = av[1] ;
-  filename += ".msh" ;
+  string input_name = av[1] ;
+  string case_name = input_name ;
+  string filename = input_name ;
 
-  string outfile = av[1] ;
-  outfile += ".vog" ;
+  if(VOG::hasSuffix(input_name,".cas")) {
+    case_name = VOG::stripSuffix(input_name,".cas") ;
+  } else if(VOG::hasSuffix(input_name,".msh")) {
+    case_name = VOG::stripSuffix(input_name,".msh") ;
+  } else {
+    // Try ".cas" first as modern fluent outputs this file extension.
+    filename = case_name + ".cas" ;
+    int validfile = 1 ;
+    // Only run stat on processor rank 0.
+    if(Loci::MPI_rank == 0) {
+      struct stat statbuf ;
+      if(stat(filename.c_str(),&statbuf))
+        validfile = 0 ;
+    }
+    // Broadcast results of stat call to other processors.
+    MPI_Bcast(&validfile,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    // If ".cas" file is not valid, then switch to older ".msh" extension.
+    if(!validfile)
+      filename = case_name + ".msh" ;
+  }
+
+  string outfile = case_name + ".vog" ;
 
   store<vector3d<double> > pos;
   Map cl, cr;
@@ -1067,4 +1089,3 @@ int main(int ac, char *av[]) {
   Loci::Finalize() ;
   return 0 ;
 }
-

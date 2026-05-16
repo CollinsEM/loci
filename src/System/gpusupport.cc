@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -467,6 +467,11 @@ namespace Loci {
   cudaStream_t streamSet[256] ;
 #endif
   int setCudaDevice() {
+    static bool GPUDeviceSetup = false ;
+    static int dev = -1 ;
+    if(GPUDeviceSetup)
+      return dev ;
+    GPUDeviceSetup = true ;
 #ifdef USE_CUDA_RT
     int worldRank, rank;
     MPI_Comm comm;
@@ -481,7 +486,7 @@ namespace Loci {
   
     pid_t pid = getpid();
   
-    int dev = -1, devCount = 0;
+    int devCount = 0;
     cudaGetDeviceCount(&devCount);
   
     if(devCount > 0) {
@@ -506,7 +511,7 @@ namespace Loci {
     }
     return dev;
 #else
-    return -1 ;
+    return dev ;
 #endif
   }
 
@@ -526,7 +531,7 @@ namespace Loci {
     variableSet gpuMaps ;
     variableSet inputs  ;
     variableSet outputs = facts.get_typed_variables();
-    ruleSet gpurules ;
+    ruleSet gpurules, mixedrules ;
     ruleSet rset = rdb.all_rules() ;
 
     map<variable,ruleSet> vargenerators ;
@@ -572,7 +577,9 @@ namespace Loci {
       }
       if(hasGPUVar) {
 	if(hasCPUVar) {
-	  cerr << "WARNING: rule " << *rsi << " contains both cpu and gpu containers! ---------" << endl ;
+	  mixedrules += rule(rp) ;
+	} else {
+	  gpurules += rule(rp) ;
 	}
 	gpurules += rule(rp) ;
       } else {
@@ -581,6 +588,23 @@ namespace Loci {
       
     }
 
+    if(mixedrules != EMPTY) {
+      for(ruleSet::const_iterator iter = mixedrules.begin();
+	  iter != mixedrules.end(); ++iter) {
+	cerr << "ERROR: rule " << *iter
+	     << " contains both CPU and GPU containers!" << endl ;
+      }
+      Loci::Abort() ;
+    }
+
+    if(gpurules != EMPTY) {
+      int dev = setCudaDevice() ;
+      if(dev < 0) {
+        cerr << "warning gpu rules but no gpu device" << endl ;
+        Loci::Abort() ;
+      }
+    }
+    
     variableSet loopVarBase ;
     for(auto rsi = gpurules.begin(); rsi != gpurules.end();++rsi) {
       if(rsi->type() == rule::BUILD) {
@@ -638,7 +662,7 @@ namespace Loci {
 	  storeRepP sp = rp->get_store(*vsi) ;
 	  if(sp!=0) {
 	    vm[*vsi] = makeGPUVAR(*vsi) ;
-	  } else if(sp != 0) {
+	  } else {
 	    vm[*vsi] = *vsi ;
 	  }
 	}
@@ -670,7 +694,7 @@ namespace Loci {
 	storeRepP sp = rp->get_store(*vsi) ;
 	if(sp!=0) {
 	  vm[*vsi] = makeGPUVAR(*vsi) ;
-	} else if(sp != 0) {
+	} else {
 	  vm[*vsi] = *vsi ;
 	}
       }

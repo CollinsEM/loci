@@ -37,6 +37,9 @@ cd loci
 git submodule init
 ```
 
+Do not use the source tarballs from [tags](https://github.com/EdwardALuke/loci/tags)
+since they will not compile because they are lacking git version information.
+
 ## Dependencies
 **Required:**
 * MPI implementation, such as [Open MPI](https://www.open-mpi.org/) or [MPICH](https://www.mpich.org)
@@ -211,6 +214,10 @@ The library can be found at http://sprng.cs.fsu.edu/
 The source code under FVMtools/libadf is the ADF library is an open
 source library that is used by some grid converters found in FVMtools
 and is provided here as a convenience.
+
+The source code under quickTest/contrib/doctest is the single header testing
+framework that is provided under the MIT license.  The software can be obtained
+from https://github.com/doctest/doctest
 
 Note that the parMETIS tools are licensed only for non-commercial use by
 University of Minnesota.  For commercial use, contact University of

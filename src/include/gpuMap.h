@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -94,20 +94,6 @@ namespace Loci {
     virtual frame_info get_frame_info() ;
     virtual void copyFrom(const storeRepP &fromMap, entitySet set)  ;
     virtual store_type RepType() const ;
-#ifdef DYNAMICSCHEDULING
-    virtual storeRepP freeze(const entitySet& es) const {
-      std::cerr << "storeRep.freeze(e) is not implemented yet"
-                << std::endl ;
-      abort() ;
-      return storeRepP(0) ;
-    }
-    virtual storeRepP thaw(const entitySet& es) const {
-      std::cerr << "storeRep.freeze(e) is not implemented yet"
-                << std::endl ;
-      abort() ;
-      return storeRepP(0) ;
-    }
-#endif
   } ;
   
   typedef NPTR<gpuMapRep> gpuMapRepP ;

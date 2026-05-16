@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -676,13 +676,6 @@ namespace Loci {
     return np.Rep() ;
   }
 
-#ifdef DYNAMICSCHEDULING
-  template<class T> storeRepP gpuparamRepI<T>::
-  redistribute_omd(const std::vector<entitySet>& dom_ptn,
-                   const dMap& remap, MPI_Comm comm) {
-    return redistribute(dom_ptn,remap,comm) ;
-  }
-#endif
   //***************************************************************************
 
 }

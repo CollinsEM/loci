@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -96,11 +96,6 @@ namespace Loci {
           debugout << *rlii << ' ' ;
         }
         debugout << "]" << endl ;
-#endif
-#ifdef DYNAMICSCHEDULING
-        // before rotation, we need to adjust the
-        // history variables (if necessary)
-        facts.adjust_rotation_vars(*rli) ;
 #endif
         // then rotate them
         facts.rotate_vars(*rli) ;

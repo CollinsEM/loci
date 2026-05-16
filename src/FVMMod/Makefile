@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright 2008, Mississippi State University
+# Copyright 2008-2025, Mississippi State University
 #
 # This file is part of the Loci Framework.
 #
@@ -25,10 +25,13 @@ include $(LOCI_BASE)/Loci.conf
 LIMITER_FILES=$(call loci_compile_files,limiters/)
 LIMITER_OBJS=$(call loci_file2objs,$(LIMITER_FILES))
 
+CELLGRADIENT_FILES=$(call loci_compile_files,cellgradient/)
+CELLGRADIENT_OBJS=$(call loci_file2objs,$(CELLGRADIENT_FILES))
+
 BASE_FILES=$(call loci_compile_files,)
 BASE_OBJS=$(call loci_file2objs,$(BASE_FILES))
 
-OBJS=$(BASE_OBJS) $(LIMITER_OBJS)
+OBJS=$(BASE_OBJS) $(LIMITER_OBJS) $(CELLGRADIENT_OBJS)
 
 MODULE_NAME = fvm
 
@@ -38,14 +41,18 @@ MODULE_NAME = fvm
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 FAD_OBJS=$(OBJS:.o=_FAD.o)
+VFAD_OBJS=$(OBJS:.o=_VFAD.o)
 
-default: $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so
+default: $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(MODULE_NAME)VFAD_m.so
 
 $(MODULE_NAME)_m.so: $(LIB_OBJS)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS) $(BASE_LIBS)
 
 $(MODULE_NAME)FAD_m.so: $(FAD_OBJS)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)FAD_m.so $(LIB_FLAGS) $(FAD_OBJS) $(BASE_LIBS)
+
+$(MODULE_NAME)VFAD_m.so: $(VFAD_OBJS)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)VFAD_m.so $(LIB_FLAGS) $(VFAD_OBJS) $(BASE_LIBS)
 
 FRC : 
 
@@ -55,17 +62,17 @@ LOCI_FILES = $(wildcard *.loci limiters/*.loci)
 LOCI_INTERMEDIATE_FILES = $(LOCI_FILES:.loci=.$(LPP_I_SUFFIX))
 
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so 
+	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(VFAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(MODULE_NAME)VFAD_m.so
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~)  core 
 
 uninstall: 
-	rm -f $(LOCI_INSTALL_PATH)/lib/$(MODULE_NAME)_m.so $(LOCI_INSTALL_PATH)/lib/$(MODULE_NAME)FAD_m.so
+	rm -f $(LOCI_INSTALL_PATH)/lib/$(MODULE_NAME)_m.so $(LOCI_INSTALL_PATH)/lib/$(MODULE_NAME)FAD_m.so $(LOCI_INSTALL_PATH)/lib/$(MODULE_NAME)VFAD_m.so
 	rm -fr $(LOCI_INSTALL_PATH)/include/FVMMod
 
 distclean: 
-	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(JUNK) $(DEPEND_FILES) $(LOCI_INTERMEDIATE_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(VFAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(MODULE_NAME)VFAD_m.so $(JUNK) $(DEPEND_FILES) $(LOCI_INTERMEDIATE_FILES)
 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))

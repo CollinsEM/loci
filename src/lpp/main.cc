@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -113,6 +113,9 @@ int main(int argc, char *argv[]) {
   string filename ;
   bool out_given = false ;
   string outfile ;
+  bool test_parse = false ;
+  int diag_level = 0 ;
+  int debug_info = 0 ;
   for(int i=1;i<argc;++i) {
     if(argv[i][0] == '-') {
       if(argv[i][1] == 'I') {
@@ -122,6 +125,18 @@ int main(int argc, char *argv[]) {
         prettyOutput = true ;
       } else  if(argv[i][1] == 'x') {
 	no_cuda = true ;
+      } else if(argv[i][1] == 't') {
+        test_parse = true ;
+      } else if(argv[i][1] == 'd') {
+        if(argv[i][2] >= '0' && argv[i][2] <= '9') 
+          diag_level = argv[i][2] - '0' ;
+        if(argv[i][2] == '\0')
+          diag_level = 10 ;
+      } else if(argv[i][1] == 'g') {
+        if(argv[i][2] >= '0' && argv[i][2] <= '9') 
+          debug_info = argv[i][2] - '0' ;
+        if(argv[i][2] == '\0')
+          debug_info = 10 ;
       } else if(argv[i][1] == 'o') {
         if(i+1>argc || out_given)
           Usage(argc,argv) ;
@@ -138,6 +153,7 @@ int main(int argc, char *argv[]) {
         for(int j=2;argv[i][j] != '\0';++j) {
           if(argv[i][j] == '=') {
             val = string(&argv[i][j+1]) ;
+            break ;
           }
           var += argv[i][j] ;
         }
@@ -168,8 +184,10 @@ int main(int argc, char *argv[]) {
   no_cuda = true ;
 #endif
   parseInfo.no_cuda = no_cuda ;
-
-
+  parseInfo.test_parse = test_parse ;
+  parseInfo.diag_level = diag_level ;
+  parseInfo.debug_info = debug_info ;
+  
   parseFile parser ;
   try {
     if(out_given) {

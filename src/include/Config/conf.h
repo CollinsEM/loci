@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -22,8 +22,6 @@
 #define LOCI_CONFIGURATION_INCLUDE
 
 #include "Config/version_info.h"
-
-#define DYNAMICSCHEDULING
 
 #ifdef restrict
 #undef restrict
@@ -75,7 +73,7 @@
 #endif
 #if (__GNUC__ > 4)
 #define USE_MAP_FOR_HASH_MAP
-#define NO_OFFSETOF
+//#define NO_OFFSETOF
 #endif
 
 #endif
@@ -88,14 +86,6 @@
 #define NO_OFFSETOF
 #define restrict __restrict
 #else
-#if defined(__sgi)
-// SGI Compiler
-#define NO_CSTDLIB
-#define NO_CMATH
-#define NO_SIGNBIT
-//#define MPI_NO_CPPBIND
-#define restrict __restrict
-#else
 #if defined(__PGI)
 /* Portland group compiler*/
 #define restrict __restrict
@@ -105,39 +95,26 @@
 #define USE_MAP_FOR_HASH_MAP
 #define __thread
 #else
-#if defined(__SUNPRO_CC)
-/* Sun CC compiler */
-#define USE_MAP_FOR_HASH_MAP
-#define SUN_CC
-#define restrict 
-#else
+//#if defined(__SUNPRO_CC)
+///* Sun CC compiler */
+//#define USE_MAP_FOR_HASH_MAP
+//#define SUN_CC
+//#define restrict 
+//#else
 
-#define restrict
+//#define restrict
 
-#endif
-
-#endif
+//#endif
 
 #endif
 
 #endif
 
-#endif
-
-#if defined(LOCI_SYS_IRIX64)
-#undef SGI
-
-#define SGI
 #endif
 
 #if defined(LOCI_SYS_Linux)
 #undef LINUX
 #define LINUX
-
-#endif
-
-#if defined(LOCI_ARCH_ia64)
-#define SYSTEM_ITANIUM64
 #endif
 
 #if defined(LOCI_ARCH_arm64)
@@ -157,10 +134,6 @@
 #endif
 #define DARWIN
 #define NO_THREAD_MEMORY
-#endif
-
-#ifdef __CYGWIN__
-#define NO_XDR_CPP_PROTOTYPES
 #endif
 
 #ifndef MPI_NO_CPPBIND

@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -43,7 +43,11 @@ struct parseSharedInfo {
   std::vector<std::string> fileNameStack ;
   std::vector<std::string> dependFileList ;
   bool no_cuda ;
-  parseSharedInfo() { no_cuda = true ; }
+  bool test_parse ;
+  int diag_level ;
+  int debug_info ;
+  parseSharedInfo() { no_cuda = true ; test_parse= false;  diag_level = 0 ;
+    debug_info = 0 ;}
   
 } ;
   
@@ -144,11 +148,17 @@ class parseFile {
   void process_Calculate(std::ostream &outputFile,
                          const std::map<Loci::variable,std::string> &vnames,
                          const std::set<std::list<Loci::variable> > & validate_set) ;
+  void process_Calculate2(std::ostream &outputFile,
+                          const std::map<Loci::variable,std::string> &vnames,
+                          const std::set<std::list<Loci::variable> > & validate_set,
+                          const parseSharedInfo &parseInfo) ;
 
   void setup_Type(std::ostream &outputFile, const std::string &comment) ;
   void setup_Untype(std::ostream &outputFile) ;
-  void setup_Rule(std::ostream &outputFile,const std::string &comment) ;
-  void setup_cudaRule(std::ostream &outputFile,const std::string &comment) ;
+  void setup_Rule(std::ostream &outputFile,const std::string &comment,
+                  const parseSharedInfo &parseInfo) ;
+  void setup_cudaRule(std::ostream &outputFile,const std::string &comment,
+                      const parseSharedInfo &parseInfo) ;
 
   void skip_lpp_conditional(std::ostream &outputFile) ;
   void setup_Test(std::ostream &outputFile) ;

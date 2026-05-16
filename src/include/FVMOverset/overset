@@ -1,0 +1,364 @@
+//#############################################################################
+//#
+//# Copyright 2008-2025, Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# The Loci Framework is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The Loci Framework is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# Lesser GNU General Public License for more details.
+//#
+//# You should have received a copy of the Lesser GNU General Public License
+//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+#ifndef OVERSET_NOH
+#define OVERSET_NOH
+
+#include <Loci>
+#include <map>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <cmath>
+
+namespace Loci {
+  // Note: iblank state codes:
+  // 0: Simulate. Donate simulated value to interpolation (not blanked)
+  // 1: Simulate. Do NOT donate simulated value to interpolation
+  // 2: Don't simulate. Interpolate values from a "cloud"
+  // 3: Don't simulate. Advance values in time as constant function
+
+  /// Typedef for byte type used for iblank and other flags
+  typedef unsigned char byte_t ;
+
+  /// Quaternion helper for rigid-body rotations. Stores the vector
+  /// part (x,y,z) and scalar part (w) and provides composition, inversion,
+  /// normalization, and vector rotation.
+  struct Quaternion {
+    // Vector part (x,y,z) and scalar part (w) of the quaternion.
+    real_t x,y,z,w ;
+    Quaternion() {}
+    Quaternion(real_t xi, real_t yi, real_t zi, real_t wi):x(xi),y(yi),z(zi),w(wi) {}
+
+    /// Axis-angle constructor. This creates a quaternion that represents a rotation
+    /// of 'angle' radians about the specified 'axis'.
+    Quaternion(vector3d<real_t> axis, real_t angle) {
+      real_t sinAngle ;
+      angle *= 0.5 ; // half-angle for quaternion representation
+      axis *= 1.0/(norm(axis)+1e-30) ; // Make axis a unit length vector
+      sinAngle = sin(angle) ;
+      x = (axis.x * sinAngle) ;
+      y = (axis.y * sinAngle) ;
+      z = (axis.z * sinAngle) ;
+      w = cos(angle) ;
+    }
+
+    // Compose two rotations: this * q.
+    Quaternion operator*(const Quaternion &q) const {
+      vector3d<real_t> vector1(x,y,z), vector2(q.x,q.y,q.z);
+
+      const real_t angle = ((w * q.w) - (dot(vector1, vector2)));
+      const vector3d<real_t> across = cross(vector1, vector2);
+      vector1 *= q.w ;
+      vector2 *= w ;
+      Quaternion result;
+      result.x = (vector1.x + vector2.x + across.x);
+      result.y = (vector1.y + vector2.y + across.y);
+      result.z = (vector1.z + vector2.z + across.z);
+      result.w = angle;
+      return result ;
+    }
+
+    /// Normalize the quaternion to unit length.
+    Quaternion &Normalize() {
+      // reciprocal of the l2 norm
+      const real_t rl2 = 1.0 / sqrt((x*x) + (y*y) + (z*z) + (w*w)) ;
+      x*=rl2 ;
+      y*=rl2 ;
+      z*=rl2 ;
+      w*=rl2 ;
+      return *this ;
+    }
+
+    /// For a unit quaternion, the inverse is just the conjugate (negate vector
+    /// part). This is the rotation that undoes this one.
+    Quaternion Inverse() const {
+      Quaternion result = *this ;
+      result.x *= -1 ;
+      result.y *= -1 ;
+      result.z *= -1 ;
+      return result ;
+    }
+
+    // Rotate a vector by this quaternion. This is the mathematical operation
+    // v' = q*v*q^-1 where v is treated as a quaternion with w=0.
+    vector3d<real_t> operator*(const vector3d<real_t> &v) const {
+      const Quaternion Q = *this ;
+      const Quaternion Qinv = Inverse() ;
+      const Quaternion vQ(v.x,v.y,v.z,0) ;
+      Quaternion result = vQ*Qinv ;
+      result = Q*result ;
+      return vector3d<real_t>(result.x,result.y,result.z) ;
+    }
+  } ;
+
+  /// Encodes the transformation that would take a point from its current
+  /// position to a new position. A transformation consists of a rotation
+  /// about a center of geometry and a translation to a new center of geometry.
+  struct componentXform {
+    /// Reference/original center of geometry (cg) and target/current center
+    /// of geometry (new_cg)
+    vector3d<real_t> cg, new_cg ;
+
+    /// Rotation as a quaternion
+    Quaternion q ;
+
+    /// Default constructor initializes to identity transform of no translation
+    /// and no rotation.
+    componentXform() {
+      cg = vector3d<real_t>(0,0,0) ;
+      new_cg = vector3d<real_t>(0,0,0) ;
+      q.x = 0 ;
+      q.y = 0 ;
+      q.z = 0 ;
+      q.w = 1 ;
+    }
+
+    /// Rotate pos about cg by q, then translate to new_cg. Returns the
+    /// transformed coordinate's position.
+    vector3d<real_t> applyXform(vector3d<real_t> pos) const {
+      return (q*(pos-cg)) + new_cg ;
+    }
+
+    /// Uses the overloaded Quaternion-vector multiplication to apply the
+    /// rotation to vec.
+    vector3d<real_t> applyRotation(vector3d<real_t> vec) const {
+      return q*vec ;
+    }
+  } ;
+
+  /// Streaming is not implemented for componentXform
+  inline std::ostream &operator<<(std::ostream &s, const componentXform x) {
+    Loci::Abort() ;
+    return s ;
+  }
+
+  /// Deserialization is not implemented for componentXform
+  inline std::istream &operator>>(std::istream &s, const componentXform x) {
+    Loci::Abort() ;
+    return s ;
+  }
+
+  /// Abstract base class for geometry types. These represent simple
+  /// geometrical shapes that can be used for overset component definitions.
+  class geometry_type : public Loci::CPTR_type {
+  public:
+    /// Apply a transform to the geometry and return a new geometry object.
+    /// This new geometry object represents the transformation applied to the
+    /// original geometry.
+    virtual geometry_type *applyXform(componentXform xform) const = 0 ;
+
+    /// Evaluate if a point is inside the geometry. Returns true if the point
+    /// is inside the geometry, false otherwise.
+    virtual bool inGeometry(vector3d<real_t> pt) const = 0 ;
+
+    /// Compute a distance from a point to the surface of the geometry.
+    virtual real_t distToSurface(vector3d<real_t> pt) const = 0 ;
+  } ;
+
+  /// Abstract base class for motion types. These represent different ways
+  /// that overset components can move in space over time.
+  class motionType : public Loci::CPTR_type {
+  public:
+    /// Compute initial state. The state vector contains the necessary
+    /// dynamic variables for the motion type. The first element of the state
+    /// vector encodes the motion type with (stationary=1,rotational=2,
+    /// prescribed=3,servo=4).
+    virtual void initialState(std::vector<real_t> &state) const = 0 ;
+
+    /// Advance state in time using the current state and a map of values
+    /// that encode information related to how the state should be advanced.
+    /// This would be a timeStep for example or a target position for servo
+    /// motion. If the input state is an empty vector, the returned state
+    /// is the state returned by initialState().
+    virtual std::vector<real_t>
+      advanceStateInTime(const std::vector<real_t> &state,
+			 const std::map<std::string,real_t> &motion_info) const = 0 ;
+
+    /// Get motion transform from a given state
+    virtual componentXform getXform(const std::vector<real_t> &state) const = 0 ;
+  } ;
+
+  /// Find the time interval that we are splining
+  int findt(const std::vector<real_t> &t, real_t tval) ;
+
+  /// Compute spline derivatives for a Hermite spline. Uses a central
+  /// difference for interior points and a quadratic fit to evaluate the
+  /// derivatives for endpoints.
+  ///   xp: output spline derivatives
+  ///   x: input spline positions
+  ///   t: input spline times
+  void splineD(std::vector<real_t> &xp, const std::vector<real_t> &x,
+               const std::vector<real_t> &t) ;
+
+  /// Cubic Hermite spline evaluation.
+  ///   ind: index of interval to evaluate on
+  ///   tval: time to evaluate spline at
+  ///   t: input spline times
+  ///   x: input spline positions
+  ///   xp: input spline derivatives
+  real_t spline(int ind,real_t tval,const std::vector<real_t> &t,
+                const std::vector<real_t> &x,
+                const std::vector<real_t> &xp) ;
+
+  /// Hermite spline data for a prescribed motion.
+  /// Stores position(x,y,z) and orientation (q) plus precomputed derivatives
+  /// at the keyframe times.
+  struct motionSplines {
+
+    /// Time(t) and position (x,y,z) components at keyframe times
+    std::vector<real_t> t,x,y,z ;
+
+    /// Quaternion components (x,y,z,w) at keyframe times
+    std::vector<real_t> q0,q1,q2,q3 ;
+
+    /// Spline derivatives
+    std::vector<real_t> xp,yp,zp,q0p,q1p,q2p,q3p ;
+
+    /// Build spline derivatives from keyframe data
+    void initialize(std::vector<real_t> ti,std::vector<real_t> xi,
+                    std::vector<real_t> yi,std::vector<real_t> zi,
+                    std::vector<real_t> q0i,std::vector<real_t> q1i,
+                    std::vector<real_t> q2i,std::vector<real_t> q3i) {
+      t = ti ;
+      x = xi ;
+      splineD(xp,x,t) ;
+      y = yi ;
+      splineD(yp,y,t) ;
+      z = zi ;
+      splineD(zp,z,t) ;
+      q0 = q0i ;
+      splineD(q0p,q0,t) ;
+      q1 = q1i ;
+      splineD(q1p,q1,t) ;
+      q2 = q2i ;
+      splineD(q2p,q2,t) ;
+      q3 = q3i ;
+      splineD(q3p,q3,t) ;
+    }
+
+    /// Evaluate the splines at time tv, filling in cg and a normalized
+    /// orientation quaternion q.
+    void getMotion(vector3d<real_t> &cg, Quaternion &q, real_t tv) const {
+      int ind = findt(t,tv) ;
+      cg.x = spline(ind,tv,t,x,xp) ;
+      cg.y = spline(ind,tv,t,y,yp) ;
+      cg.z = spline(ind,tv,t,z,zp) ;
+      q.x = spline(ind,tv,t,q0,q0p) ;
+      q.y = spline(ind,tv,t,q1,q1p) ;
+      q.z = spline(ind,tv,t,q2,q2p) ;
+      q.w = spline(ind,tv,t,q3,q3p) ;
+      q.Normalize() ;
+    }
+  } ;
+
+  template<> struct data_schema_traits<Loci::Quaternion> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      CompoundDatatypeP ct = CompoundFactory(Loci::Quaternion()) ;
+      LOCI_INSERT_TYPE(ct,Loci::Quaternion,x) ;
+      LOCI_INSERT_TYPE(ct,Loci::Quaternion,y) ;
+      LOCI_INSERT_TYPE(ct,Loci::Quaternion,z) ;
+      LOCI_INSERT_TYPE(ct,Loci::Quaternion,w) ;
+      return DatatypeP(ct) ;
+    }
+  } ;
+
+  template<> struct data_schema_traits<Loci::componentXform> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      CompoundDatatypeP ct = CompoundFactory(Loci::componentXform()) ;
+      LOCI_INSERT_TYPE(ct,Loci::componentXform,cg) ;
+      LOCI_INSERT_TYPE(ct,Loci::componentXform,new_cg) ;
+      LOCI_INSERT_TYPE(ct,Loci::componentXform,q) ;
+
+      return DatatypeP(ct) ;
+    }
+  } ;
+
+  /// Container for interpolation search data on a set of points using a
+  /// KDTree for nearest-neighbor queries.
+  class interpolate_points {
+  public:
+    Loci::kdTree::KDTree<float> *kd ;
+    store<vector3d<double> > pos ;
+    store<int> posid ;
+
+    /// A global offset table of entities across MPI ranks. Used to get the
+    /// number of entities on each rank.
+    std::vector<int> distribution ;
+    interpolate_points &operator=(const interpolate_points &in) {
+      std::cerr << "interpolate_data shouldn't be copied!" << std::endl ;
+      kd = 0 ;
+      pos.setRep(in.pos.Rep()) ;
+      return *this ;
+    }
+    ~interpolate_points() {
+      if(kd !=0)
+        delete kd ;
+      kd = 0 ;
+      pos.allocate(EMPTY) ;
+      posid.allocate(EMPTY) ;
+    }
+    interpolate_points() {
+      kd = 0 ;
+    }
+  } ;
+
+  /// Typedef for 3D float coordinates used in KDTree
+  typedef vector3d<float> coord3df ;
+
+  /// Used for estimating local stencil spacing.
+  /// Holds a KDTree of donor centers with a per-point size tag; getSpacing scales a reference length
+  /// by the nearest donor’s tag (or returns the reference when none) to approximate local spacing.
+  class StencilSizer {
+  public:
+    Loci::kdTree::KDTree<float> *kd ;
+    float ref_size ;
+    float getSpacing(coord3df pt) const {
+      int id = kd->find_closest(pt) ;
+      if(id <= 0)
+        return ref_size ;
+      return ref_size/float(id) ;
+    }
+
+    StencilSizer &operator=(const StencilSizer &in) {
+      std::cerr << "interpolate_data shouldn't be copied!" << std::endl ;
+      kd = 0 ;
+      return *this ;
+    }
+    ~StencilSizer() {
+      if(kd !=0)
+        delete kd ;
+      kd = 0 ;
+    }
+    StencilSizer() {
+      kd = 0 ;
+    }
+  } ;
+
+  struct stencil_info {
+    std::vector<Loci::Array<double,4> > weights ;
+    std::vector<Loci::Array<int ,4> > stencils ;
+    std::vector<int> send_info, req_sizes, snd_sizes ;
+    Loci::storeRepP slookup ;
+  } ;
+}
+#endif

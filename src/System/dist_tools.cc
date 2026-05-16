@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008-2019, Mississippi State University
+//# Copyright 2008-2025, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -1343,17 +1343,9 @@ namespace Loci {
         continue ;
       }
 
-      // save the old rule name
-      string old_name = ri->get_info().name() ;
-
       rp->replace_map_constraints(facts) ;
 
       rule nr(rp) ;
-      // rename the rule to its old name gives the rule
-      // signature to still have the original Map name
-      // in the constraint field, which is easier for
-      // the output routine and for users to read
-      nr.rename(old_name) ;
 
       new_rdb.add_rule(nr) ;
     }

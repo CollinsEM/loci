@@ -1,7 +1,9 @@
 ---
 title: Iterative Loop
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Iterative Loop

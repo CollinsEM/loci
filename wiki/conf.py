@@ -1,14 +1,19 @@
-# Sphinx configuration for the Loci Framework Specification wiki.
+# Sphinx configuration for the Loci Framework Developer Reference.
 # This file is processed from wiki/_build/src/ after wikilink preprocessing.
 
-project   = "Loci Framework Specification"
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent / "_ext"))
+
+project   = "Loci Framework Developer Reference"
 copyright = "Mississippi State University"
 author    = "Edward A. Luke et al."
-release   = "0.6.0"
+release   = "0.7.0"
 
 extensions = [
     "myst_parser",
     "sphinx.ext.mathjax",
+    "attribution",
 ]
 
 myst_enable_extensions = [
@@ -33,11 +38,11 @@ html_theme_options = {
     "navigation_with_keys": True,
 }
 
-html_title = "Loci Specification"
+html_title = "Loci Developer Reference"
 
 # Pages not in any toctree (stubs) are intentional — suppress the warning.
 # Also suppress unknown lexer warnings (Loci source uses ```cpp as the fence
 # language since Pygments has no native Loci lexer).
 suppress_warnings = ["toc.excluded", "misc.highlighting_failure"]
 
-exclude_patterns = ["_build", "_tools", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "_tools", "_ext", "Thumbs.db", ".DS_Store"]

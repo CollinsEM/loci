@@ -1,7 +1,9 @@
 ---
 title: Build Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Build Rule

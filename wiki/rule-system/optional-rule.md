@@ -1,7 +1,9 @@
 ---
 title: Optional Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Optional Rule

@@ -1,7 +1,9 @@
 ---
 title: Prelude / Compute Split
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Prelude / Compute Split

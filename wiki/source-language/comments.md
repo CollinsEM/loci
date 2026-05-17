@@ -1,7 +1,9 @@
 ---
 title: Comments Annotation
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Comments Annotation

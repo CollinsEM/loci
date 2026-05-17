@@ -1,7 +1,9 @@
 ---
 title: HDF5 I/O
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # HDF5 I/O

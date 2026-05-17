@@ -1,7 +1,9 @@
 ---
 title: Singleton Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Singleton Rule

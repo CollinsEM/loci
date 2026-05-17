@@ -1,8 +1,10 @@
 ---
 title: Halo Exchange
 category: Distributed Execution
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Halo Exchange

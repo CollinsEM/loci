@@ -1,7 +1,9 @@
 ---
 title: Prelude Block
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Prelude Block

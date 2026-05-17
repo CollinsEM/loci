@@ -1,7 +1,9 @@
 ---
 title: Loci Coding Style Guide
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Loci Coding Style Guide

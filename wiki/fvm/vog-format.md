@@ -1,7 +1,9 @@
 ---
 title: VOG Mesh File Format
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # VOG Mesh File Format

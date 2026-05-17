@@ -1,8 +1,10 @@
 ---
 title: lpp (Loci Preprocessor)
 category: Loci Source Language
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # lpp — The Loci Preprocessor

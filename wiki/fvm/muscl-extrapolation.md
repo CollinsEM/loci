@@ -1,7 +1,9 @@
 ---
 title: FVM MUSCL Extrapolation
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM MUSCL Extrapolation

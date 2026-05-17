@@ -1,8 +1,10 @@
 ---
 title: Ghost Entity
 category: Distributed Execution
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Ghost Entity

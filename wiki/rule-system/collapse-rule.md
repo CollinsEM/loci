@@ -1,7 +1,9 @@
 ---
 title: Collapse Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Collapse Rule

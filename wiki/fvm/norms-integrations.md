@@ -1,7 +1,9 @@
 ---
 title: FVM Norms and Surface Integrations
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM Norms and Surface Integrations

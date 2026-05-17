@@ -1,7 +1,9 @@
 ---
 title: $type
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # $type Declaration

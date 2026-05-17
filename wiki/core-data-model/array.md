@@ -1,7 +1,9 @@
 ---
 title: "Array<T,N>"
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Array\<T,N\>

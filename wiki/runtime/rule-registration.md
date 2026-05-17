@@ -1,8 +1,10 @@
 ---
 title: Rule Registration Mechanism
-category: Runtime Specification
-status: normative
+category: Runtime Developer Guide
+status: complete
 audience: runtime
+attribution: llm
+reviewed: false
 ---
 
 # Rule Registration Mechanism

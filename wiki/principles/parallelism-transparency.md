@@ -1,8 +1,10 @@
 ---
 title: Parallelism Transparency Principle
 category: Foundational Principles
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Parallelism Transparency Principle

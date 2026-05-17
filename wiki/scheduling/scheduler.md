@@ -1,8 +1,10 @@
 ---
 title: Scheduler
 category: Scheduling and Execution Model
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Scheduler

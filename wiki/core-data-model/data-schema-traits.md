@@ -1,7 +1,9 @@
 ---
 title: data_schema_traits
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # data_schema_traits

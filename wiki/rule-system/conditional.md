@@ -1,7 +1,9 @@
 ---
 title: Conditional
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Conditional

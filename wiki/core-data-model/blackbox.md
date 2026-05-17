@@ -1,7 +1,9 @@
 ---
 title: blackbox
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # blackbox

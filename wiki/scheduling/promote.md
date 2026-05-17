@@ -1,0 +1,27 @@
+---
+title: promote
+category: Scheduling and Execution Model
+status: normative
+audience: both
+---
+
+# promote
+
+**Promote** is a scheduler-internal operation, inserted automatically into the
+execution schedule, that makes a stationary (non-iterated) variable available within
+an [[rule-system/iterative-loop|iterative loop]].
+
+For example, if a mesh connectivity map `cr` is computed once before the loop begins,
+a promote step creates `cr{n}` as an alias to `cr`, allowing rules inside the loop to
+access it using the time-level-annotated name.
+
+## Transparency
+
+Promote is transparent to the application developer and is documented here for
+reference when reading scheduler output (e.g., the `.schedule` file). The
+precise rules governing promote belong to the Loci Runtime Specification.
+
+---
+
+*See also:* [[scheduling/generalize|generalize]],
+[[rule-system/iterative-loop|Iterative Loop]], [[scheduling/scheduler|Scheduler]]

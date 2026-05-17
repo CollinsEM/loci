@@ -1,0 +1,95 @@
+---
+title: Apply Rule
+category: Rule System
+status: normative
+---
+
+# Apply Rule
+
+An **apply rule** implements a *transform-reduce* operation over an entity domain. For
+each entity in its domain, the apply rule kernel may perform arbitrary local computation
+(the *transform* phase) and then contributes the result to an output accumulator via a
+declared associative operator (the *reduce* phase).
+
+## Reduction Operator
+
+The associative operator is declared in bracket syntax after the rule head:
+
+```cpp
+$rule apply(output <- inputs)[Loci::Summation], constraint(...) { ... }
+```
+
+Loci provides predefined operators:
+
+| Operator | Identity |
+|----------|---------|
+| `Loci::Summation` | `0` |
+| `Loci::Product` | `1` |
+| `Loci::Maximum` | smallest representable value |
+| `Loci::Minimum` | largest representable value |
+
+Custom operators may be defined as a functor implementing:
+
+```cpp
+void operator()(T& accum, const T& val)
+```
+
+### The `join` Function
+
+Within an apply rule kernel, `join` is a convenience function that invokes the declared
+reduction operator, accumulating a contribution into the output. It is syntactic sugar
+for calling `void operator()(T& accum, const T& val)` on the operator functor:
+
+```cpp
+join($output, contribution) ;   // equivalent to: operator()($output, contribution)
+```
+
+## Cross-Process Reduction
+
+Each process accumulates a partial result over its local entities. The runtime then
+combines partial results transparently — either via gather-reduce-broadcast or
+all-reduce — and makes the final value available to all participating processes. The
+associativity (and commutativity) of the operator guarantees the result is independent
+of process count and entity distribution.
+
+## Store vs. param Reductions
+
+Apply rules may output to either:
+
+- A **[[core-data-model/param|param]]** — global reduction; a single value is produced
+  across all entities and processes.
+- A **[[core-data-model/store|store]]** — local reduction; the accumulator is per-entity.
+  When an apply rule writes to adjacent entities (e.g., `cl->residual`, `cr->residual`)
+  that reside on a different process, the runtime accumulates into ghost entities and
+  handles cross-process communication transparently.
+
+## Caution: Operator Commutativity
+
+The operator must be strictly associative and commutative. Any conditional logic in the
+apply rule kernel must be based solely on the *input* values being contributed — never
+on the current state of the accumulator, as the order of accumulation is not guaranteed.
+
+## Examples
+
+**Store reduction** — accumulate face fluxes into cell residuals:
+
+```cpp
+$rule apply(cl->qresidual <- qdot)[Loci::Summation],
+      constraint(cl->geom_cells) {
+  join($cl->$qresidual, $qdot) ;
+}
+```
+
+**param reduction** — compute global minimum timestep:
+
+```cpp
+$rule apply(dt <- L, nu)[Loci::Minimum] {
+  float local_dt = $L*$L / (2.*$nu) ;
+  join($dt, local_dt) ;
+}
+```
+
+---
+
+*See also:* [[rule-system/unit-rule|Unit Rule]], [[rule-system/rule|Rule]],
+[[core-data-model/param|param]], [[core-data-model/store|store]]

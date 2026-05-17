@@ -1,0 +1,47 @@
+---
+title: $type
+category: Loci Source Language
+status: normative
+---
+
+# $type Declaration
+
+A **`$type` declaration** associates a Loci variable name with a container type,
+providing the preprocessor with the information needed to generate correct typed code
+for every rule that references that variable.
+
+## Syntax
+
+```cpp
+$type variableName containerType ;
+```
+
+where `containerType` is one of: `store<T>`, `param<T>`, `Map`, `multiMap`, `MapVec`,
+`storeVec<T>`, `storeMat<T>`, `blackbox<T>`, `constraint`.
+
+## Behavioural Guarantees
+
+- The `$type` declaration is a **preprocessor-only** directive. It has no runtime
+  existence: it does not register the variable with the fact database or rule database,
+  and it does not allocate any storage. Its sole effect is to inform the preprocessor
+  of the variable's type so that correctly-typed code can be generated.
+- All `$type` declarations for the same variable name across the entire code base must
+  agree on the container type. Conflicting declarations produce undefined behaviour
+  (typically a preprocessor warning followed by a link-time error).
+- A `$type` declaration may be preceded by a JSDoc-style comment block (`/** ... */`).
+  A conforming preprocessor captures this comment and associates it with the variable
+  as documentation metadata.
+
+## Sharing Types Across Files
+
+`$type` declarations are typically placed in `.lh` header files and shared via
+[[source-language/dollar-include|$include]]:
+
+```cpp
+$include "flowvars.lh"   // brings in $type declarations for all flow variables
+```
+
+---
+
+*See also:* [[source-language/dollar-include|$include]],
+[[source-language/dollar-rule|$rule syntax]]

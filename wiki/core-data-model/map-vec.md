@@ -1,0 +1,57 @@
+---
+title: MapVec
+category: Core Data Model
+status: normative
+---
+
+# MapVec
+
+A **MapVec** is a [[core-data-model/relation|Relation]] in which each entity maps to a
+**compile-time fixed-size** array of `M` entity identifiers. `MapVec<M>` is a distinct
+template class parameterised by the integer constant `M` — it is not a typedef or
+specialisation of [[core-data-model/multi-map|multiMap]] — though a MapVec can be
+converted to a multiMap in which every entry has the same size `M`. Used when the
+structural arity is uniform across the entire domain.
+
+## Declaration
+
+```cpp
+$type edge2node MapVec<2> ;   // each edge maps to exactly 2 node entities
+```
+
+## Kernel Access Syntax
+
+Elements are accessed by integer index; `$mapVecName[i]->relation` accesses the relation
+on the i-th mapped entity for the current execution entity (0-indexed, i < M):
+
+```cpp
+// Within a rule over edges:
+vect3d midpoint = 0.5 * ($edge2node[0]->$pos + $edge2node[1]->$pos) ;
+```
+
+## Construction (imperative context)
+
+```cpp
+MapVec<2> edge2node ;
+edge2node.allocate(edges) ;       // allocate over an EntitySet
+edge2node[e][0] = first_node ;    // assign 0th mapped entity for edge e
+edge2node[e][1] = second_node ;   // assign 1st mapped entity
+```
+
+Rule inputs bound to a `MapVec<M>` are typed as `const_MapVec<M>` in the generated code.
+
+## Internal Representation
+
+Each entity's slot is stored as `Array<int,M>` — a compile-time fixed-size array of
+entity labels. This makes MapVec more compact and cache-friendly than multiMap for
+uniform-arity connectivity.
+
+## Formal Definition
+
+$M : D \to U^M$, where $M \ge 1$ is a compile-time integer constant and $U$ is the
+[[core-data-model/entity|Entity Universe]].
+
+---
+
+*See also:* [[core-data-model/map|Map]], [[core-data-model/multi-map|multiMap]],
+[[core-data-model/relation|Relation]]

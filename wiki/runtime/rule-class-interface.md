@@ -1,0 +1,130 @@
+---
+title: C++ Rule Class Interface
+category: Runtime Specification
+status: normative
+audience: runtime
+---
+
+# C++ Rule Class Interface
+
+Every Loci `$rule` declaration is translated by [[source-language/lpp|lpp]] into a
+C++ class that inherits from one of the rule base classes defined in `<Loci.h>`. This
+page defines the required interface for each base class as seen by both the
+preprocessor (which generates the subclass) and the runtime (which invokes it).
+
+## Base Class Hierarchy
+
+| `$rule` type | C++ base class |
+|---|---|
+| `pointwise` | `Loci::pointwise_rule` |
+| `singleton` | `Loci::singleton_rule` |
+| `unit` | `Loci::unit_rule` |
+| `apply` | `Loci::apply_rule<T, Op>` |
+| `default` | `Loci::default_rule` |
+| `optional` | `Loci::optional_rule` |
+| `constraint` (computed) | `Loci::constraint_rule` |
+
+All base classes ultimately derive from `Loci::rule_impl`.
+
+## Constructor Protocol
+
+Every generated rule class constructor must call the following registration methods
+before returning. These calls communicate the rule's metadata to the runtime:
+
+| Method | Purpose |
+|--------|---------|
+| `name_store(varname, member)` | Associates a Loci variable name with a C++ member variable that holds the container handle |
+| `input(varname_list)` | Declares which named variables are inputs (read-only) |
+| `output(varname_list)` | Declares which named variables are outputs (written) |
+| `constraint(varname_list)` | Declares constraint dependencies |
+| `conditional(varname)` | Declares the conditional variable for collapse rules |
+
+Multiple variable names in `input`, `output`, and `constraint` calls are
+comma-separated strings: `input("rho,rhoE,vel")`.
+
+### Canonical Constructor
+
+```cpp
+class compute_temperature : public Loci::pointwise_rule {
+  Loci::const_store<real>  rho, rhoE ;
+  Loci::store<real>        temperature ;
+public:
+  compute_temperature() {
+    name_store("rho",         rho) ;
+    name_store("rhoE",        rhoE) ;
+    name_store("temperature", temperature) ;
+    input("rho,rhoE") ;
+    output("temperature") ;
+    constraint("geom_cells") ;
+  }
+  void calculate(Loci::Entity e) {
+    temperature[e] = rhoE[e] / rho[e] ;
+  }
+} ;
+Loci::register_rule<compute_temperature> register_compute_temperature ;
+```
+
+## Execution Methods
+
+The runtime invokes rule execution through one of two methods, depending on the rule
+type and the threading configuration:
+
+| Method | Signature | When called |
+|--------|-----------|-------------|
+| `calculate(Entity e)` | per-entity | pointwise, apply rules (default) |
+| `compute(const sequence &seq)` | over a sequence | singleton, default, optional, constraint rules; pointwise with `option(disable_threading)` |
+
+For rules with a `prelude` block, the runtime calls `prelude(const sequence &seq)`
+before `compute` or before iterating `calculate`. A conforming runtime must honour
+the application developer's `option(disable_threading)` declaration by routing
+prelude execution through `compute` rather than parallelising the `calculate` loop.
+
+## Container Handle Types
+
+Inside rule class bodies, Loci variables are held as typed container handles. The
+`lpp` preprocessor selects the appropriate handle type from the `$type` declaration:
+
+| Container type | Read-only handle | Read-write handle |
+|---|---|---|
+| `store<T>` | `const_store<T>` | `store<T>` |
+| `storeVec<T>` | `const_storeVec<T>` | `storeVec<T>` |
+| `storeMat<T>` | `const_storeMat<T>` | `storeMat<T>` |
+| `Map` | `const_Map` | `Map` |
+| `multiMap` | `const_multiMap` | `multiMap` |
+| `MapVec<M>` | `const_MapVec<M>` | `MapVec<M>` |
+| `param<T>` | `const_param<T>` | `param<T>` |
+| `blackbox<T>` | `const_blackbox<T>` | `blackbox<T>` |
+| `constraint` | `const_Constraint` | `Constraint` |
+
+Input variables declared via `input(...)` must use the `const_*` form. Output
+variables declared via `output(...)` use the non-const form.
+
+## The `apply_rule` Template
+
+Reduction rules require two template parameters:
+
+```cpp
+class accumulate_mass : public Loci::apply_rule<Loci::store<real>,
+                                                Loci::Summation<real>> {
+```
+
+- The first parameter is the output container type.
+- The second parameter is the join operator. Standard operators provided by Loci:
+
+| Operator class | Semantics |
+|---|---|
+| `Loci::Summation<T>` | `+=` |
+| `Loci::Maximum<T>` | `max` |
+| `Loci::Minimum<T>` | `min` |
+| `Loci::AndJoin` | logical AND |
+| `Loci::OrJoin` | logical OR |
+
+Custom operators must provide `void operator()(T &a, const T &b)` and an `identity()`
+method returning the additive identity for the join operation.
+
+---
+
+*See also:* [[runtime/rule-registration|Rule Registration]],
+[[source-language/lpp|lpp]],
+[[source-language/dollar-rule|$rule syntax]],
+[[rule-system/apply-rule|Apply Rule]]

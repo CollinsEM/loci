@@ -1,0 +1,81 @@
+---
+title: Loci Coding Style Guide
+category: Loci Source Language
+status: normative
+---
+
+# Loci Coding Style Guide
+
+Conventions for writing `.loci` source files and mixed Loci/C++ code.
+
+## C++ Conventions
+
+- **Indentation**: 2 spaces. No tabs.
+- **Line length**: 80 characters maximum. Break before an operator when a line
+  would exceed this limit.
+- **Spaces**: one space before semicolons; spaces in comma-separated lists
+  (arguments, declarations).
+- **Brace style**:
+
+```cpp
+void function() {
+  if (condition) {
+    // code
+  } else {
+    // code
+  }
+}
+```
+
+- **Long argument lists**: indent continuation lines by 6 spaces (3× indent level):
+
+```cpp
+void function(TypeA argumentA, TypeB argumentB, TypeC argumentC,
+      TypeD argumentD, TypeE argumentE) {
+}
+```
+
+## Loci `$rule` Conventions
+
+- **Line breaking**: break a long rule before the 80-character limit. Continuation
+  lines are **not** indented (they remain flush-left):
+
+```cpp
+$rule pointwise(variableA <- variableB), constraint(constraintA),
+option(disable_threading), prelude {
+  // prelude body
+} compute {
+  // compute body
+}
+```
+
+- **Comments on rules**: use `///` (triple-slash) for documentation comments on
+  rules — these are captured by `lpp` and associated with the rule as metadata.
+  Use `//` for all other source comments:
+
+```cpp
+/// Computes the cell-centred temperature from the energy and density.
+$rule pointwise(temperature <- rho, rhoE) {
+  $temperature = $rhoE / $rho ;
+}
+```
+
+- **Semicolons**: include a space before the semicolon terminating a `$rule`
+  statement that has no body (default and optional rules):
+
+```cpp
+$rule default(maxIter) {
+  *$maxIter = 100 ;
+}
+```
+
+## File Organisation
+
+- Place `$type` declarations in `.lh` header files, one conceptual group per file.
+- Share headers across `.loci` files using `$include`.
+- Keep `$include` directives at the top of each `.loci` file, before any `$rule` blocks.
+
+---
+
+*See also:* [[source-language/lpp|lpp]], [[source-language/dollar-type|$type]],
+[[source-language/dollar-include|$include]], [[source-language/dollar-rule|$rule syntax]]

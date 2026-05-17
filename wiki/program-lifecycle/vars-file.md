@@ -1,0 +1,110 @@
+---
+title: ".vars File Format"
+category: Program Lifecycle
+status: normative
+---
+
+# .vars File Format
+
+A **`.vars` file** is the end-user configuration file for a Loci application. It supplies
+values for variables declared by [[rule-system/default-rule|default]] and
+[[rule-system/optional-rule|optional]] rules, overriding defaults and enabling optional
+code paths without recompiling. The file is loaded at startup by
+[[program-lifecycle/read-vars|read_vars]].
+
+## Basic Syntax
+
+The file body is a single brace-delimited block of `name: value` assignments. Whitespace
+and C++ line comments (`//`) are permitted anywhere:
+
+```
+{
+  N:          50      // number of cells
+  nu:         1.0     // diffusion coefficient
+  stop_iter:  1000
+}
+```
+
+- The opening `{` and closing `}` are required.
+- Each assignment is `name: value`; no terminating semicolon or comma.
+- A variable name is recognised if it has been registered in the fact database before
+  `read_vars` is called — either through a `$rule default` or `$rule optional`
+  declaration, or by a prior `create_fact` call in application code. An unrecognised
+  name causes a runtime error.
+- A name may appear at most once; a warning is issued if it is redefined.
+
+## Value Types
+
+The value syntax is determined by the declared type of the target variable:
+
+| Declared type | Example value |
+|---|---|
+| `param<int>` | `50` |
+| `param<float>` / `param<double>` | `1.0`, `3.14e-3` |
+| `param<string>` | `"output_dir"` |
+| `param<options_list>` | `< key=value, ... >` (see below) |
+
+## Options Lists
+
+A value of type `param<options_list>` is written as an angle-bracket delimited,
+comma-separated list of `key=value` pairs. Values may carry physical unit suffixes
+(`K`, `atm`, `m/s`, etc.) that the application interprets via `getOptionUnits()`. Nested
+parentheses supply sub-options:
+
+```
+boundary_conditions: <
+  BC_1=adiabatic,
+  BC_2=adiabatic,
+  BC_3=specified(Twall=300K),
+  BC_4=specified(Twall=3000K)   // inner wall temperature
+>
+
+initialConditions: < T=300K, p=1atm, M=0.3 >
+```
+
+The `boundary_conditions` variable is the canonical example: its options list is
+processed by `setupBoundaryConditions(facts)`, which creates named constraint sets
+(`adiabatic_BC`, `specified_BC`, etc.) for use in rule signatures.
+
+## Namespace Blocks
+
+Variables belonging to a named namespace are placed in a separate block, introduced
+by `} @namespace {` after the primary block closes:
+
+```
+{
+  stop_iter: 500
+} @myModule {
+  tolerance: 1e-8
+  max_iters: 100
+}
+```
+
+Within rules, namespaced variables are referenced as `myModule::tolerance`.
+Namespace blocks may be nested.
+
+## Complete Example
+
+```
+// Heat conduction simulation
+{
+boundary_conditions: <
+  BC_1=specified(Twall=500K),   // blob surface
+  BC_2=specified(Twall=300K),   // outer wall
+  BC_3=adiabatic, BC_4=adiabatic
+>
+
+T_initial:    300
+Density:      8960
+Cp:           0.383
+conductivity: 394
+
+stop_iter:    10
+plot_freq:    5
+}
+```
+
+---
+
+*See also:* [[program-lifecycle/read-vars|read_vars]],
+[[rule-system/default-rule|Default Rule]], [[rule-system/optional-rule|Optional Rule]]

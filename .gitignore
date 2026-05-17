@@ -35,6 +35,9 @@ config.log
 *.code-workspace
 .vscode/
 
+# Wiki build artifacts
+wiki/_build/
+
 # Documentation artifacts
 *.aux
 *.log

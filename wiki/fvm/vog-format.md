@@ -1,0 +1,123 @@
+---
+title: VOG Mesh File Format
+category: FVM Module
+status: normative
+---
+
+# VOG Mesh File Format
+
+The **VOG** (Volume Grid) format is the native mesh file format for Loci FVM
+applications. VOG files are HDF5 files with a defined internal structure. The format
+is produced by mesh-conversion utilities and consumed by `readGridVOG` at application
+startup.
+
+## Top-Level HDF5 Groups
+
+A VOG file contains four top-level groups:
+
+| Group | Contents |
+|-------|----------|
+| `file_info` | Mesh summary attributes |
+| `node_info` | Node positions |
+| `surface_info` | Boundary condition names and tags |
+| `face_info` | Face–node and face–cell connectivity (compressed) |
+
+### `file_info`
+
+Attributes:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `numCells` | integer | Number of interior cells |
+| `numFaces` | integer | Total number of faces |
+| `numNodes` | integer | Number of mesh nodes |
+
+### `node_info`
+
+Contains a dataset named `positions`: an array of `numNodes` three-component
+floating-point vectors `(x, y, z)`, one per node in file-numbering order.
+
+### `surface_info`
+
+Contains one sub-group per named boundary condition. Each sub-group is named after
+the boundary surface (e.g., `inlet`, `wall`, `symmetry`) and carries an attribute
+`Ident` — an integer tag used to identify boundary faces in the `face_info` data.
+
+### `face_info`
+
+Stores connectivity in a compressed **face cluster** format (see below). Key datasets:
+
+| Dataset | Description |
+|---------|-------------|
+| `cluster_sizes` | Array of byte-lengths, one per cluster |
+| `cluster_info` | Concatenated raw bytes of all face clusters |
+
+## Face Orientation Convention
+
+For every face, `face2node` lists its nodes in an order that defines a right-hand-rule
+outward normal from the left cell (`cl`) toward the right cell (`cr`):
+
+- **Interior faces**: both `cl` and `cr` are positive cell indices.
+- **Boundary faces**: `cr` is a negative integer whose absolute value is the boundary
+  surface `Ident` tag from `surface_info`. All boundary face normals point *out of*
+  the domain.
+
+Interior faces are further required to obey a **coloring constraint**: one cannot
+traverse faces from left to right and return to the starting cell. This coloring is
+used by symmetric Gauss-Seidel solvers and is typically derived from a depth-first
+search of the cell-to-cell adjacency graph, guided by a space-filling curve ordering.
+
+## Face Cluster Encoding
+
+Face clusters pack connectivity information compactly using single-byte local indices
+with a translation table to global file numbers.
+
+**Within a cluster** (at most 256 distinct nodes and 256 distinct cells):
+
+1. For each group of same-size faces:
+   - Number of nodes per face (`fsz`; value `0` signals end of face data)
+   - Number of faces of that size (`nfc`; groups of >255 split across blocks)
+   - For each face: `fsz` node indices, then left cell index, then right cell index
+2. After all face groups: translation tables mapping local byte indices to global
+   file-number integers (nodes first, then cells)
+
+**Variable-length integer encoding** in translation tables: the most-significant bit
+of each byte is a *continue* bit; bit `0x40` of the first byte is the sign bit; the
+remaining bits are the integer value in little-endian 7-bit groups. This allows
+identifiers up to 64 bits without uniform 8-byte cost.
+
+## Mesh Element Ordering
+
+Element ordering is not required by the format but significantly affects file size and
+solver performance. The recommended ordering procedure:
+
+1. Compute cell centres.
+2. Sort cells by **Hilbert space-filling curve** key.
+3. Reorder faces in first-visited order when traversing cells in Hilbert order.
+4. Reorder nodes in first-visited order when traversing faces in the new face order.
+
+This ordering improves cluster packing density and CPU cache utilisation during both
+file I/O and solver execution.
+
+## Opening VOG Files from Application Code
+
+The FVM runtime provides convenience wrappers that hide the HDF5 boilerplate:
+
+```cpp
+hid_t fid = Loci::readVOGOpen(filename) ;   // open for reading
+// ... read containers ...
+Loci::writeVOGClose(fid) ;                  // close
+```
+
+For writing (mesh conversion tools):
+
+```cpp
+hid_t fid = Loci::writeVOGOpen(filename) ;
+// ... write containers ...
+Loci::writeVOGClose(fid) ;
+```
+
+---
+
+*See also:* [[fvm/mesh-topology|Mesh Topology]], [[fvm/overview|FVM Module Overview]],
+[[program-lifecycle/hdf5-io|HDF5 I/O]]

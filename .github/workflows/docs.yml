@@ -5,6 +5,7 @@ on:
     branches: [dev, wiki-docs]
     paths:
       - 'wiki/**'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 env:

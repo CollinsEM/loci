@@ -1,7 +1,9 @@
 ---
 title: $include
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # $include

@@ -1,7 +1,9 @@
 ---
 title: EntitySet
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # EntitySet

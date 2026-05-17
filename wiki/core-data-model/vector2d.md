@@ -1,7 +1,9 @@
 ---
 title: "vector2d<T>"
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # vector2d\<T\>

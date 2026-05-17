@@ -1,7 +1,9 @@
 ---
 title: "vector3d<T>"
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # vector3d\<T\>

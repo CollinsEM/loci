@@ -162,8 +162,8 @@ def process(src_dir_arg: str, dst_dir_arg: str) -> None:
         shutil.rmtree(dst_dir)
     dst_dir.mkdir(parents=True)
 
-    # Copy Sphinx config and any static assets verbatim.
-    for name in ("conf.py", "_static"):
+    # Copy Sphinx config, extension modules, and any static assets verbatim.
+    for name in ("conf.py", "_static", "_ext"):
         src = src_dir / name
         if not src.exists():
             continue

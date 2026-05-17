@@ -1,7 +1,9 @@
 ---
 title: $[Once]
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # $[Once]

@@ -1,8 +1,10 @@
 ---
 title: global_rule_list
 category: Program Lifecycle
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # global_rule_list

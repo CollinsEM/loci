@@ -1,8 +1,10 @@
 ---
 title: Scheduler Algorithm
-category: Runtime Specification
-status: normative
+category: Runtime Developer Guide
+status: complete
 audience: runtime
+attribution: llm
+reviewed: false
 ---
 
 # Scheduler Algorithm

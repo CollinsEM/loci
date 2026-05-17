@@ -1,7 +1,9 @@
 ---
 title: FVM PETSc Linear Solvers
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM PETSc Linear Solvers

@@ -1,8 +1,10 @@
 ---
 title: C++ Rule Class Interface
-category: Runtime Specification
-status: normative
+category: Runtime Developer Guide
+status: complete
 audience: runtime
+attribution: llm
+reviewed: false
 ---
 
 # C++ Rule Class Interface

@@ -1,7 +1,9 @@
 ---
 title: read_vars
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # read_vars

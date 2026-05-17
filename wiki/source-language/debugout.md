@@ -1,7 +1,9 @@
 ---
 title: "Loci::debugout"
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Loci::debugout

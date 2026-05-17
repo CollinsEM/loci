@@ -1,8 +1,10 @@
 ---
 title: generalize
 category: Scheduling and Execution Model
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # generalize
@@ -18,7 +20,7 @@ set to the value computed for `u{n+1}` by the preceding
 
 Generalize is transparent to the application developer and is documented here for
 reference when reading scheduler output. The precise rules governing generalize
-belong to the Loci Runtime Specification.
+belong to the Loci Runtime Developer Guide.
 
 ---
 

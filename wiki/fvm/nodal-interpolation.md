@@ -1,7 +1,9 @@
 ---
 title: FVM Nodal Interpolation
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM Nodal Interpolation

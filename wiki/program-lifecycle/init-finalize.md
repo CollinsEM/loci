@@ -1,7 +1,9 @@
 ---
 title: "Loci::Init / Loci::Finalize"
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Loci::Init / Loci::Finalize

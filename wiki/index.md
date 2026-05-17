@@ -1,8 +1,8 @@
-# Loci Framework Specification — Wiki
+# Loci Framework Developer Reference
 
-**Loci Application Developer Reference** · Draft 0.7.0 · May 2026
+**Draft 0.7.0** · May 2026
 
-Complete reference documentation for writing Loci applications. Covers the full
+Reference documentation for writing Loci applications. Covers the full
 developer-facing surface: foundational principles, core data model, rule types,
 scheduling model, program lifecycle, and standard modules (FVM). Pages use
 `[[wikilinks]]` for cross-references and are compatible with Obsidian, Emacs
@@ -13,7 +13,7 @@ org-mode (via `pandoc`), and Sphinx/MyST.
 ## Foundational Principles
 
 > These four principles are architectural commitments, not implementation choices.
-> Every specification decision is evaluated against them.
+> Every design decision in this reference is evaluated against them.
 
 - [[principles/parallelism-transparency|Parallelism Transparency]]
 - [[principles/static-schedule|Static Schedule]]
@@ -128,12 +128,12 @@ Preprocessor syntax recognized by the `lpp` tool.
 
 ---
 
-## Runtime Specification
+## Runtime Developer Guide
 
 Reference for framework and runtime developers implementing a conforming Loci backend,
 preprocessor, or scheduler.
 
-- [[runtime/index|Runtime Specification Overview]]
+- [[runtime/index|Runtime Developer Guide Overview]]
 - [[runtime/rule-class-interface|C++ Rule Class Interface]]
 - [[runtime/rule-registration|Rule Registration Mechanism]]
 - [[runtime/scheduler-algorithm|Scheduler Algorithm]]
@@ -141,16 +141,17 @@ preprocessor, or scheduler.
 
 ---
 
-## Document Status
+## Page Status
 
-Each page carries two frontmatter fields:
+Each page carries frontmatter fields indicating its editorial state and content origin:
 
 | Field | Values | Meaning |
 |-------|--------|---------|
-| `status` | `normative`, `draft`, `stub` | Editorial completeness |
-| `audience` | `application`, `runtime`, `both` | Which document the page belongs to |
+| `status` | `complete`, `draft`, `stub` | Editorial completeness |
+| `audience` | `application`, `runtime`, `both` | Which audience the page targets |
+| `attribution` | `human`, `llm`, `mixed` | Who produced the content |
+| `reviewed` | `true`, `false` | Whether a subject matter expert has reviewed it |
 
 Pages without an `audience` field are implicitly `application`-only. Pages marked
-`both` appear in both the Application Developer Reference and the Runtime
-Specification.
+`both` are relevant to both application developers and runtime implementors.
 

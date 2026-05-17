@@ -1,8 +1,10 @@
 ---
 title: promote
 category: Scheduling and Execution Model
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # promote
@@ -19,7 +21,7 @@ access it using the time-level-annotated name.
 
 Promote is transparent to the application developer and is documented here for
 reference when reading scheduler output (e.g., the `.schedule` file). The
-precise rules governing promote belong to the Loci Runtime Specification.
+precise rules governing promote belong to the Loci Runtime Developer Guide.
 
 ---
 

@@ -1,7 +1,9 @@
 ---
 title: Debugging
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Debugging

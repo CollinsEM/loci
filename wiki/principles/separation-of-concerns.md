@@ -1,8 +1,10 @@
 ---
 title: Separation of Concerns Principle
 category: Foundational Principles
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Separation of Concerns Principle
@@ -25,15 +27,14 @@ These concerns must not leak into each other.
 
 ## Two-Document Boundary
 
-This principle shapes the structure of the specification itself:
+This principle shapes the structure of this reference:
 
 - The **Loci Application Developer Reference** (this document) addresses the
   application developer's view: what to declare, what the declarations mean,
   and what the runtime is obligated to do on the developer's behalf.
-- The **Loci Runtime Specification** (a separate document) is the conformance
-  specification for runtime implementors. C++ class hierarchies, registration
-  mechanisms, preprocessor obligations, and scheduler algorithms appear only
-  there.
+- The **Loci Runtime Developer Guide** (a separate document) covers runtime
+  implementors. C++ class hierarchies, registration mechanisms, preprocessor
+  obligations, and scheduler algorithms appear only there.
 
 ---
 

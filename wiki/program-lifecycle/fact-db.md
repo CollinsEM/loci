@@ -1,7 +1,9 @@
 ---
 title: fact_db
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # fact_db

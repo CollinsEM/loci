@@ -1,7 +1,9 @@
 ---
 title: Priority Specifier
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Priority Specifier

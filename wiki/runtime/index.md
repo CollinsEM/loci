@@ -1,15 +1,17 @@
 ---
-title: Loci Runtime Specification
-category: Runtime Specification
-status: normative
+title: Loci Runtime Developer Guide
+category: Runtime Developer Guide
+status: complete
 audience: runtime
+attribution: llm
+reviewed: false
 ---
 
-# Loci Runtime Specification
+# Loci Runtime Developer Guide
 
 This section documents the obligations of a **conforming Loci runtime** — any
 implementation of the Loci framework's preprocessor, scheduler, and parallel
-execution backend. The normative reference implementation is `loci-4.1.2` (LGPLv3).
+execution backend. The reference implementation is `loci-4.1.2` (LGPLv3).
 
 A conforming runtime must honour every behavioural guarantee stated in the
 [[index|Application Developer Reference]] as observable from application code. The
@@ -19,7 +21,7 @@ pages in this section define *how* those guarantees must be implemented.
 
 ## Scope
 
-The runtime specification covers:
+This guide covers:
 
 - The **C++ rule class interface**: base classes, `name_store`, `input`, `output`
   registration, and the `calculate` / `compute` / `do_loop` execution structure
@@ -35,8 +37,8 @@ The runtime specification covers:
 ## Relationship to the Application Developer Reference
 
 The Application Developer Reference defines the *observable behaviour* of Loci from
-the application programmer's perspective. The runtime specification defines the
-*mechanisms* that must produce that behaviour.
+the application programmer's perspective. This guide defines the *mechanisms* that
+must produce that behaviour.
 
 Concepts that appear in both documents:
 

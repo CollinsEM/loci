@@ -1,7 +1,9 @@
 ---
 title: options_list
 category: Core Data Model
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # options_list

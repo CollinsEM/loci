@@ -1,7 +1,9 @@
 ---
 title: Unit Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Unit Rule

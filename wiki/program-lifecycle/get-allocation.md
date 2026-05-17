@@ -1,7 +1,9 @@
 ---
 title: get_allocation
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # get_allocation

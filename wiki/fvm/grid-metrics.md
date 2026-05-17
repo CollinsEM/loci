@@ -1,7 +1,9 @@
 ---
 title: FVM Grid Metrics
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM Grid Metrics

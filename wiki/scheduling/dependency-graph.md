@@ -1,8 +1,10 @@
 ---
 title: Dependency Graph
 category: Scheduling and Execution Model
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Dependency Graph

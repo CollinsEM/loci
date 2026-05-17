@@ -1,7 +1,9 @@
 ---
 title: Constraint Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Constraint Rule

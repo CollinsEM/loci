@@ -1,7 +1,9 @@
 ---
 title: ".vars File Format"
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # .vars File Format

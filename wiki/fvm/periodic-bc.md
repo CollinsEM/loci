@@ -1,7 +1,9 @@
 ---
 title: FVM Periodic Boundary Conditions
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM Periodic Boundary Conditions

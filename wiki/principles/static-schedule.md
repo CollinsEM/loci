@@ -1,8 +1,10 @@
 ---
 title: Static Schedule Principle
 category: Foundational Principles
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Static Schedule Principle

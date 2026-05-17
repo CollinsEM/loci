@@ -1,8 +1,10 @@
 ---
 title: Data-Driven Computation Principle
 category: Foundational Principles
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # Data-Driven Computation Principle

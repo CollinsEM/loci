@@ -1,7 +1,9 @@
 ---
 title: Apply Rule
 category: Rule System
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Apply Rule

@@ -1,8 +1,10 @@
 ---
 title: rule_db
 category: Program Lifecycle
-status: normative
+status: complete
 audience: both
+attribution: llm
+reviewed: false
 ---
 
 # rule_db

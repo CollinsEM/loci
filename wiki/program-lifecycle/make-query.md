@@ -1,7 +1,9 @@
 ---
 title: "Loci::makeQuery"
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Loci::makeQuery

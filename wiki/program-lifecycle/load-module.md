@@ -1,7 +1,9 @@
 ---
 title: "Loci::load_module"
 category: Program Lifecycle
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # Loci::load_module

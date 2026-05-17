@@ -1,7 +1,9 @@
 ---
 title: FVM Spatial Gradients
 category: FVM Module
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # FVM Spatial Gradients

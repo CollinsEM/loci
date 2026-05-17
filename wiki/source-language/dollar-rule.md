@@ -1,7 +1,9 @@
 ---
 title: $rule syntax
 category: Loci Source Language
-status: normative
+status: complete
+attribution: llm
+reviewed: false
 ---
 
 # $rule Syntax

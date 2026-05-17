@@ -1,8 +1,10 @@
 ---
 title: lpp Conformance Obligations
-category: Runtime Specification
-status: normative
+category: Runtime Developer Guide
+status: complete
 audience: runtime
+attribution: llm
+reviewed: false
 ---
 
 # lpp Conformance Obligations

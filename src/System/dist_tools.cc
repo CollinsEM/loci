@@ -877,12 +877,13 @@ namespace Loci {
     vector<MPI_Request> requestList(d->copy.size()+d->xmit.size()) ;
     vector<MPI_Status> requestStatus(d->copy.size()+d->xmit.size()) ;
     for(size_t i=0;i<d->copy.size();++i)
-      MPI_Irecv(&copySizes[i*nsets],nsets,MPI_INT,d->copy[i].proc,1,
-                MPI_COMM_WORLD, &requestList[i]) ;
+      MPI_Irecv(copySizes.data()+i*nsets,nsets,MPI_INT,d->copy[i].proc,1,
+                MPI_COMM_WORLD, requestList.data()+i) ;
     for(size_t i=0;i<d->xmit.size();++i)
-      MPI_Isend(&xmitSizes[i*nsets],nsets,MPI_INT,d->xmit[i].proc,1,
-                MPI_COMM_WORLD, &requestList[i+d->copy.size()]) ;
-    MPI_Waitall(requestList.size(), &requestList[0], &requestStatus[0]) ;
+      MPI_Isend(xmitSizes.data()+i*nsets,nsets,MPI_INT,d->xmit[i].proc,1,
+                MPI_COMM_WORLD, requestList.data()+i+d->copy.size()) ;
+    if(requestList.size() > 0)
+      MPI_Waitall(requestList.size(), &requestList[0], &requestStatus[0]) ;
     return copySizes ;
   }
 
@@ -962,8 +963,8 @@ namespace Loci {
     int recvBufCnt = 0 ;
     for(size_t i=0;i<d->copy.size();++i)
       if(recvSetSizes[i] > 0) {
-        MPI_Irecv(&recvBuffer[recvBufCnt],recvSetSizes[i]*2,MPI_INT,d->copy[i].proc,1,
-                  MPI_COMM_WORLD, &requestList[cnt]) ;
+        MPI_Irecv(recvBuffer.data()+recvBufCnt,recvSetSizes[i]*2,MPI_INT,d->copy[i].proc,1,
+                  MPI_COMM_WORLD, requestList.data()+cnt) ;
         recvBufCnt+=recvSetSizes[i]*2 ;
         cnt++ ;
       }
@@ -973,13 +974,14 @@ namespace Loci {
     for(size_t i=0;i<d->xmit.size();++i) {
       int sz = sendSets[i].size() ;
       if(sz > 0) {
-        MPI_Isend(&sendBuffer[j],sz*2,MPI_INT,d->xmit[i].proc,1,
-                  MPI_COMM_WORLD, &requestList[cnt]) ;
+        MPI_Isend(sendBuffer.data()+j,sz*2,MPI_INT,d->xmit[i].proc,1,
+                  MPI_COMM_WORLD, requestList.data()+cnt) ;
         j += sz*2 ;
         cnt++ ;
       }
     }
-    MPI_Waitall(requestList.size(), requestList.data(), requestStatus.data()) ;
+    if(requestList.size() > 0)
+      MPI_Waitall(requestList.size(), &requestList[0], &requestStatus[0]) ;
       
     for(int i=0;i<totalRecv;++i) {
       int kd = recvBuffer[i*2] ;
@@ -1074,8 +1076,8 @@ namespace Loci {
       if(recvSizes[i] > 0) {
         // test to see if valgrind error is real
         //        bzero(&recvBuffer[recvBufCnt],recvSizes[i]*2*sizeof(int)) ;
-        MPI_Irecv(&recvBuffer[recvBufCnt],recvSizes[i]*2,MPI_INT,d->copy[i].proc,1,
-                  MPI_COMM_WORLD, &requestList[cnt]) ;
+        MPI_Irecv(recvBuffer.data()+recvBufCnt,recvSizes[i]*2,MPI_INT,d->copy[i].proc,1,
+                  MPI_COMM_WORLD, requestList.data()+cnt) ;
         recvBufCnt+=recvSizes[i]*2 ;
         cnt++ ;
       }
@@ -1085,14 +1087,15 @@ namespace Loci {
     for(size_t i=0;i<d->xmit.size();++i) {
       int sz = sendSizes[i] ;
       if(sz > 0) {
-        MPI_Isend(&sendBuffer[sendcnt],sz*2,MPI_INT,d->xmit[i].proc,1,
-                  MPI_COMM_WORLD, &requestList[cnt]) ;
+        MPI_Isend(sendBuffer.data()+sendcnt,sz*2,MPI_INT,d->xmit[i].proc,1,
+                  MPI_COMM_WORLD, requestList.data()+cnt) ;
         sendcnt += sz*2 ;
         cnt++ ;
       }
     }
     WARN(sendcnt != totalSend*2) ;
-    MPI_Waitall(requestList.size(), requestList.data(), requestStatus.data()) ;
+    if(requestList.size() > 0)
+      MPI_Waitall(requestList.size(), &requestList[0], &requestStatus[0]) ;
   
     cnt = 0 ;
     for(size_t i=0;i<recvSizes.size();++i)
